@@ -30,11 +30,28 @@ function love.draw()
 end
 ```
 
+How it Works
+------------
+
+Lily tries to load the asset, which can be time consuming, into another thread, called "TaskPool". When Lily is loaded, it creates
+n-amount of "TaskPool", where `n` depends on how many CPU core you have. This allows the main thread to keep rendering while the other
+thread do the asset loading. If you have more CPU cores, this is even better because the asset loading will be scattered across "TaskPool"
+(by selecting "TaskPool" which has least amount of pending tasks). CPU core detection requires `love.system` module. Although it's possible
+to use Lily without `love.system` by using other methods to find amount of CPU core, such strategy can fail under some system configuration
+and fallback to 1 "TaskPool".
+
+Why there's no `lily.update()` like in love-loader `loader.update()`? Lily takes advantage that `love.event.push` is thread-safe and
+in fact LOVE allows custom event which can be added via `love.handlers` table. So, instead of using `Channel` to pass the loaded asset
+to Lily main thread, Lily register it's own event and then the other thread will send LOVE event using `love.thread.push`, then LOVE
+will read that this event comes from Lily "TaskPool" thread, then execute Lily event handler, which in turns returns the loaded asset.
+
 Documentation
 -------------
 
 Most Lily function to create threaded asset follows LOVE name, like `newSource` for loading playable audio, `newImage` for loading
-drawable image, and such. Additionally, Lily expose these additional function
+drawable image, and such. Additionally, Lily expose these additional function.
+
+For LOVE name functions (`newImage`, `newFont`, `newImageData`, `newSource`, ...), Lily always returns object called `LilyObject`.
 
 *************************************************
 
@@ -59,3 +76,19 @@ Returns: Table with n-elements depending on `lily.getThreadCount()`.
 Uninitializes Lily.
 
 > This function should only be called if you plan restarting your game with `love.event.quit("restart")`. This is true when using LOVE under iOS!
+
+*************************************************
+
+### `LilyObject LilyObject:onComplete(function complete_callback)`
+
+Sets new function as callback when the asset is loaded. Default to noop.
+
+Returns: itself
+
+*************************************************
+
+### `LilyObject LilyObject:onError(function complete_callback)`
+
+Sets new function as callback when there's error when loading asset. Default to Lua built-in `error` function.
+
+Returns: itself
