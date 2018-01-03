@@ -55,6 +55,8 @@ do
 	-- Supply means push + wait until received.
 	thread_lily_id = table.concat(t)
 	channel_info:supply(thread_lily_id)
+	-- Push current lily thread task count
+	channel_info:push(0)
 end
 
 -- Function handlers

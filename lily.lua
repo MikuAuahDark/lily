@@ -17,7 +17,7 @@
 --    misrepresented as being the original software.
 -- 3. This notice may not be removed or altered from any source distribution.
 
-local lily = {_VERSION = "2.0.0"}
+local lily = {_VERSION = "2.0.1"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 
@@ -434,6 +434,9 @@ return lily
 
 --[[
 Changelog:
+v2.0.1: 03-01-2018
+> Fixed random crash
+
 v2.0.0: 01-01-2018
 > Support `newVideoStream`
 > Support multi loading (`lily.loadMulti`)

@@ -1,4 +1,4 @@
--- LOVE Async Loading Library
+-- LOVE Async Loading Library (Single file)
 -- Copyright (c) 2039 Dark Energy Processor
 -- 
 -- This software is provided 'as-is', without any express or implied
@@ -17,7 +17,7 @@
 --    misrepresented as being the original software.
 -- 3. This notice may not be removed or altered from any source distribution.
 
-local lily = {_VERSION = "2.0.0"}
+local lily = {_VERSION = "2.0.1"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 
@@ -467,6 +467,8 @@ do
 	-- Supply means push + wait until received.
 	thread_lily_id = table.concat(t)
 	channel_info:supply(thread_lily_id)
+	-- Push current lily thread task count
+	channel_info:push(0)
 end
 
 -- Function handlers
