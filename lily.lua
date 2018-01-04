@@ -17,7 +17,7 @@
 --    misrepresented as being the original software.
 -- 3. This notice may not be removed or altered from any source distribution.
 
-local lily = {_VERSION = "2.0.1"}
+local lily = {_VERSION = "2.0.2"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 
@@ -25,6 +25,8 @@ assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 local _arg = {...}
 local module_path
 local lily_thread_script
+print(_arg[1])
+love.handlers.print = print
 
 if type(_arg[1]) == "string" then
 	-- Oh, standard Lua require
@@ -79,7 +81,10 @@ for i = 1, number_processor do
 	local a = {}
 	a.channel_info = love.thread.newChannel()
 	a.channel = love.thread.newChannel()
-	a.thread = love.thread.newThread(lily_thread_script or module_path:gsub(".", "/").."lily_thread.lua")
+	a.thread = love.thread.newThread(
+		(lily_thread_script and #lily_thread_script > 30 and lily_thread_script) or
+		module_path:gsub("%.", "/").."lily_thread.lua"
+	)
 	a.thread:start(lily.modules, math.random(), a.channel, a.channel_info, errchannel)
 	
 	lily.threads[i] = a
@@ -87,6 +92,10 @@ end
 for i = 1, number_processor do
 	local a = lily.threads[i]
 	a.id = a.channel_info:demand()
+	-- Wait until task_count count is added.
+	-- Somehow, using suply/demand doesn't work
+	-- so busy wait is last resort. Please someone fix
+	while a.channel_info:getCount() == 0 do end
 end
 
 -- Function handler
@@ -428,12 +437,14 @@ if love.video then
 	lily_new_func("newVideoStream", dummyhandler)
 end
 
-lily_thread_script = nil
-
 return lily
 
 --[[
 Changelog:
+v2.0.2: 04-01-2018
+> Fixed random crash (again)
+> Fixed when lily in folder, it doesn't work
+
 v2.0.1: 03-01-2018
 > Fixed random crash
 

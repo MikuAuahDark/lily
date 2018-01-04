@@ -174,9 +174,6 @@ local function not_quit()
 	return channel_info:getCount() == 1
 end
 
--- Current active task
-channel_info:push(0)
-
 -- If main thread puses anything to channel_info, or pop the count, that means we should exit
 while channel_info:performAtomic(not_quit) do
 	local tid = channel:demand()
