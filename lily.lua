@@ -77,25 +77,28 @@ end
 -- Create n-threads
 local errchannel = love.thread.newChannel()
 lily.threads = {}
-for i = 1, number_processor do
-	local a = {}
-	a.channel_info = love.thread.newChannel()
-	a.channel = love.thread.newChannel()
-	a.thread = love.thread.newThread(
-		(lily_thread_script and #lily_thread_script > 30 and lily_thread_script) or
-		module_path:gsub("%.", "/").."lily_thread.lua"
-	)
-	a.thread:start(lily.modules, math.random(), a.channel, a.channel_info, errchannel)
-	
-	lily.threads[i] = a
-end
-for i = 1, number_processor do
-	local a = lily.threads[i]
-	a.id = a.channel_info:demand()
-	-- Wait until task_count count is added.
-	-- Somehow, using suply/demand doesn't work
-	-- so busy wait is last resort. Please someone fix
-	while a.channel_info:getCount() == 0 do end
+
+local function initThreads()
+	for i = 1, number_processor do
+		local a = {}
+		a.channel_info = love.thread.newChannel()
+		a.channel = love.thread.newChannel()
+		a.thread = love.thread.newThread(
+			lily_thread_script or
+			module_path:gsub("%.", "/").."lily_thread.lua"
+		)
+		a.thread:start(lily.modules, math.random(), a.channel, a.channel_info, errchannel)
+		
+		lily.threads[i] = a
+	end
+	for i = 1, number_processor do
+		local a = lily.threads[i]
+		a.id = a.channel_info:demand()
+		-- Wait until task_count count is added.
+		-- Somehow, using suply/demand doesn't work
+		-- so busy wait is last resort. Please someone fix
+		while a.channel_info:getCount() == 0 do end
+	end
 end
 
 -- Function handler
@@ -437,6 +440,8 @@ if love.video then
 	lily_new_func("newVideoStream", dummyhandler)
 end
 
+-- do not remove this comment!
+initThreads()
 return lily
 
 --[[
