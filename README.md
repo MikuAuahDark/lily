@@ -61,7 +61,7 @@ end
 Install
 -------
 
-Put `lily.lua` and `lily_thread.lua` in your LOVE game and `require("lily")`. Or use `lily_single.lua` and `require` it.
+Put `lily.lua` and `lily_thread.lua` in your LOVE game and `require("lily")`. Or use `lily_single.lua` and `require("lily_single")`.
 
 How it Works
 ------------
@@ -224,7 +224,7 @@ Returns: `true` if specificed object fully loaded, `false` otherwise.
 
 ### `value1, value2, ... LilyObject:getValues()`
 
-### `value1, value2, ... MultiLilyObject:getValues(numbr lilyindex)`
+### `value1, value2, ... MultiLilyObject:getValues(number lilyindex)`
 
 Get the result value of corresponding Lily request. Throws error if request is still incomplete.
 

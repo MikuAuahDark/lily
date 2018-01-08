@@ -17,7 +17,7 @@
 --    misrepresented as being the original software.
 -- 3. This notice may not be removed or altered from any source distribution.
 
-local lily = {_VERSION = "2.0.2"}
+local lily = {_VERSION = "2.0.3"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 
@@ -25,8 +25,6 @@ assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 local _arg = {...}
 local module_path
 local lily_thread_script
-print(_arg[1])
-love.handlers.print = print
 
 if type(_arg[1]) == "string" then
 	-- Oh, standard Lua require
@@ -417,8 +415,8 @@ end
 
 if love.image then
 	lily_new_func("encodeImageData", dummyhandler)
-	lily_new_func("newImageData", wraphandler(love.image.newImageData))
-	lily_new_func("newCompressedData", wraphandler(love.image.newCompressedData))
+	lily_new_func("newImageData", dummyhandler)
+	lily_new_func("newCompressedData", dummyhandler)
 	lily_new_func("pasteImageData", dummyhandler)
 end
 
@@ -683,6 +681,9 @@ return lily
 
 --[[
 Changelog:
+v2.0.3: 08-01-2018
+> Fixed lily.newImageData error
+
 v2.0.2: 04-01-2018
 > Fixed random crash (again)
 > Fixed when lily in folder, it doesn't work
