@@ -17,7 +17,7 @@
 --    misrepresented as being the original software.
 -- 3. This notice may not be removed or altered from any source distribution.
 
-local lily = {_VERSION = "2.0.3"}
+local lily = {_VERSION = "2.0.4"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 
@@ -41,7 +41,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua")
 -- List active modules
 local excluded_modules = {"event", "joystick", "keyboard", "mouse", "physics", "system", "timer", "touch", "window"}
 lily.modules = {}
-if love.data then lily.modules[1] = "data" end
+if love.data and love._version >= "0.11.0" then lily.modules[1] = "data" end
 for a, b in pairs(love._modules) do
 	local f = false
 	for i = 1, #excluded_modules do
@@ -91,6 +91,7 @@ local function initThreads()
 	end
 	for i = 1, number_processor do
 		local a = lily.threads[i]
+		print(a.thread:getError())
 		a.id = a.channel_info:demand()
 		-- Wait until task_count count is added.
 		-- Somehow, using suply/demand doesn't work
@@ -444,9 +445,6 @@ return lily
 
 --[[
 Changelog:
-v2.0.3: 08-01-2018
-> Fixed lily.newImageData error
-
 v2.0.2: 04-01-2018
 > Fixed random crash (again)
 > Fixed when lily in folder, it doesn't work
