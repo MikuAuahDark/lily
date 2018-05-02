@@ -1,14 +1,14 @@
 -- LOVE Async Loading Library
 -- Copyright (c) 2039 Dark Energy Processor
--- 
+--
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
 -- arising from the use of this software.
--- 
+--
 -- Permission is granted to anyone to use this software for any purpose,
 -- including commercial applications, and to alter it and redistribute it
 -- freely, subject to the following restrictions:
--- 
+--
 -- 1. The origin of this software must not be misrepresented; you must not
 --    claim that you wrote the original software. If you use this software
 --    in a product, an acknowledgment in the product documentation would be
@@ -17,14 +17,20 @@
 --    misrepresented as being the original software.
 -- 3. This notice may not be removed or altered from any source distribution.
 
-local lily = {_VERSION = "2.0.4"}
+-- NOTICE: For custom `love.run` users.
+-- 1. You have to explicitly pass event with name "lily_resp"
+--    to `love.handlers.lily_resp` along with all of it's arguments.
+-- 2. When you're handling "quit" event and you integrate Lily into
+--    your `love.run` loop, call `lily.quit` before `return`.
+
+local lily = {_VERSION = "2.0.5"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 
 -- Get current script directory
 local _arg = {...}
 local module_path
-local lily_thread_script
+local lily_thread_script --luacheck: ignore lily_thread_script
 
 if type(_arg[1]) == "string" then
 	-- Oh, standard Lua require
@@ -41,8 +47,8 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua")
 -- List active modules
 local excluded_modules = {"event", "joystick", "keyboard", "mouse", "physics", "system", "timer", "touch", "window"}
 lily.modules = {}
-if love.data and love._version >= "0.11.0" then lily.modules[1] = "data" end
-for a, b in pairs(love._modules) do
+if love._version >= "11.0" then lily.modules[1] = "data" end
+for a in pairs(love._modules) do
 	local f = false
 	for i = 1, #excluded_modules do
 		if excluded_modules[i] == a then
@@ -50,7 +56,7 @@ for a, b in pairs(love._modules) do
 			break
 		end
 	end
-	
+
 	if not(f) then lily.modules[#lily.modules + 1] = a end
 end
 
@@ -59,7 +65,7 @@ local number_processor = 1
 if love.system then
 	-- love.system is loaded. We can use that.
 	number_processor = love.system.getProcessorCount()
-elseif package.path:find("\\", 1, true) then
+elseif love._os == "Windows" then
 	-- Windows. Use NUMBER_OF_PROCESSORS environment variable
 	number_processor = assert(tonumber(os.getenv("NUMBER_OF_PROCESSORS")), "Invalid NUMBER_OF_PROCESSORS")
 elseif os.execute() == 1 then
@@ -86,16 +92,15 @@ local function initThreads()
 			module_path:gsub("%.", "/").."lily_thread.lua"
 		)
 		a.thread:start(lily.modules, math.random(), a.channel, a.channel_info, errchannel)
-		
+
 		lily.threads[i] = a
 	end
 	for i = 1, number_processor do
 		local a = lily.threads[i]
-		print(a.thread:getError())
 		a.id = a.channel_info:demand()
-		-- Wait until task_count count is added.
-		-- Somehow, using suply/demand doesn't work
-		-- so busy wait is last resort. Please someone fix
+		-- Wait until task_count count is added. Somehow, using suply/demand
+		-- doesn't work, so busy wait is last resort.
+		-- FIXME: Do not use busy wait!
 		while a.channel_info:getCount() == 0 do end
 	end
 end
@@ -115,14 +120,14 @@ function love.handlers.lily_resp(req_id, ...)
 	if lily.request[req_id] then
 		local lilyobj = lily.request[req_id]
 		lily.request[req_id] = nil
-		
+
 		-- If there's error, then the second value is the error message
 		if select(1, ...) == errchannel then
 			lilyobj.error(lilyobj.userdata, select(2, ...))
 		else
 			-- No error. Pass it to secondary handler
 			local values = {pcall(lily.handlers[lilyobj.request_type], lilyobj, select(1, ...))}
-			
+
 			if not(values[1]) then
 				-- Error handler again
 				lilyobj.error(lilyobj.userdata, values[2])
@@ -133,7 +138,7 @@ function love.handlers.lily_resp(req_id, ...)
 					values[i - 1] = values[i]
 				end
 				values[#values] = nil
-				
+
 				lilyobj.values = values
 				lilyobj.done = true
 				lilyobj.complete(lilyobj.userdata, unpack(values))
@@ -158,27 +163,31 @@ end
 
 function lily.getThreadsTaskCount()
 	local t = {}
-	
+
 	for i = 1, number_processor do
 		local a = lily.threads[i]
-		
+
 		t[i] = a.channel_info:performAtomic(get_task_count)
 	end
-	
+
 	return t
 end
 
--- If you're under iOS, call this before restarting your game
+-- If you're under mobile, call this before restarting/exiting your game
 -- or the threads won't get cleaned up properly (undefined behaviour)
 function lily.quit()
 	for i = 1, number_processor do
 		local a = lily.threads[i]
-		-- Pop the task count to tell lily threads to stop
-		a.channel_info:pop()
-		-- Wait it to finish
-		a.thread:wait()
+		if a then
+			-- Pop the task count to tell lily threads to stop
+			a.channel_info:pop()
+			-- Wait it to finish
+			a.thread:wait()
+			-- Clear
+			lily.threads[i] = nil
+		end
 	end
-	
+
 	-- Reset package table
 	package.loaded.lily = nil
 end
@@ -188,14 +197,14 @@ local function get_lowest_task_count()
 	local t = lily.getThreadsTaskCount()
 	local highestidx = 1
 	local lowestval = 1
-	
+
 	for i = 1, #t do
 		if t[i] < lowestval then
 			lowestval = t[i]
 			highestidx = i
 		end
 	end
-	
+
 	return lily.threads[highestidx]
 end
 
@@ -236,10 +245,10 @@ end
 -- Request ID used to distinguish between different request
 local function create_request_id()
 	local t = {}
-	for i = 1, 64 do
+	for _ = 1, 64 do
 		t[#t + 1] = string.char(math.random(0, 255))
 	end
-	
+
 	return table.concat(t)
 end
 
@@ -250,7 +259,7 @@ local function new_lily_object(reqtype, ...)
 	this.req_id = create_request_id()
 	this.arguments = {...}
 	this.done = false
-	
+
 	-- Send request to other thread
 	local thread = get_lowest_task_count()
 	-- Push task
@@ -258,15 +267,15 @@ local function new_lily_object(reqtype, ...)
 	thread.channel:push(reqtype)
 	thread.channel:push(this.req_id)
 	thread.channel_info:performAtomic(increase_task_count)
-	
+
 	-- Push arguments
 	for i = 1, #this.arguments do
 		thread.channel:push(this.arguments[i])
 	end
-	
+
 	-- Insert to request table
 	lily.request[this.req_id] = this
-	
+
 	return this
 end
 
@@ -295,11 +304,11 @@ end
 
 function multilily_methods.__index.onError(this, func)
 	this.error = assert(type(func) == "function" and func, "bad argument #1 to 'lilyObject:onError' (function expected)")
-	
+
 	for i = 1, #this.lilies do
 		this.lilies[i]:onError(this.error)
 	end
-	
+
 	return this
 end
 
@@ -314,16 +323,16 @@ end
 
 function multilily_methods.__index.getValues(this, index)
 	assert(this.done, "Incomplete request")
-	
+
 	if index == nil then
 		local output = {}
 		for i = 1, #this.lilies do
 			output[i] = this.lilies[i].values
 		end
-		
+
 		return output
 	end
-	
+
 	return assert(this.values[index], "Invalid index")
 end
 
@@ -333,17 +342,17 @@ end
 
 local function multilily_onLoaded(info, ...)
 	local multilily = info[2]
-	
+
 	multilily.completed_request = multilily.completed_request + 1
 	multilily.loaded(multilily.userdata, info[1], select(1, ...))
-	
+
 	if multilily:isComplete() then
 		-- Process
 		local output = {}
 		for i = 1, #multilily.lilies do
 			output[i] = multilily.lilies[i].values
 		end
-		
+
 		multilily.complete(multilily.userdata, output)
 	end
 end
@@ -354,13 +363,13 @@ function lily.loadMulti(tabdecl)
 		lilies = {},
 		completed_request = 0
 	}, multilily_methods)
-	
+
 	for i = 1, #tabdecl do
 		local tab = tabdecl[i]
-		
+
 		-- tab[1] is lily name, the rest is arguments
 		local func
-		
+
 		if type(tab[1]) == "string" then
 			if lily[tab[1]] and lily.handlers[tab[1]] then
 				func = lily[tab[1]]
@@ -373,14 +382,14 @@ function lily.loadMulti(tabdecl)
 		else
 			error("Invalid lily function at index #"..i)
 		end
-		
+
 		local lilyobj = func(unpack(tab, 2))
 			:setUserData({i, this})
 			:onComplete(multilily_onLoaded)
-		
+
 		this.lilies[#this.lilies + 1] = lilyobj
 	end
-	
+
 	return this
 end
 
@@ -421,11 +430,11 @@ if love.image then
 	lily_new_func("pasteImageData", dummyhandler)
 end
 
-if love.math and love._version < "0.11.0" or love.data then
-	local function dataGetString(lilyobj, value)
+if love.math and love._version < "11.0" or love.data then
+	local function dataGetString(_, value)
 		return value:getString()
 	end
-	
+
 	-- Notice: compress/decompress in lily expects it to be string
 	lily_new_func("compress", dataGetString)
 	lily_new_func("decompress", dataGetString)
@@ -442,15 +451,15 @@ end
 lily_thread_script = [===[
 -- LOVE Async Loading Library (Thread Part)
 -- Copyright (c) 2039 Dark Energy Processor
--- 
+--
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
 -- arising from the use of this software.
--- 
+--
 -- Permission is granted to anyone to use this software for any purpose,
 -- including commercial applications, and to alter it and redistribute it
 -- freely, subject to the following restrictions:
--- 
+--
 -- 1. The origin of this software must not be misrepresented; you must not
 --    claim that you wrote the original software. If you use this software
 --    in a product, an acknowledgment in the product documentation would be
@@ -459,26 +468,27 @@ lily_thread_script = [===[
 --    misrepresented as being the original software.
 -- 3. This notice may not be removed or altered from any source distribution.
 
-require("love.event")
-local love = love
+local love = require("love")
 local modules, seed, channel, channel_info, errorindicator = ...
 local nts_modules = {"graphics", "window"}
 local has_graphics = false
 
+-- We need love.event, always.
+require("love.event")
 math.randomseed((math.random() + seed) * 1073741823.5)
 
 -- Load modules
-for n, v in pairs(modules) do
+for _, v in pairs(modules) do
 	local f = false
 	if v == "graphics" then has_graphics = true end
-	
+
 	for i = 1, #nts_modules do
 		if nts_modules[i] == v then
 			f = true
 			break
 		end
 	end
-	
+
 	if not(f) then
 		require("love."..v)
 	end
@@ -489,10 +499,10 @@ do
 	-- Generate our lily thread id
 	-- Lily thread id consist of 64 printable ASCII char
 	local t = {}
-	for i = 1, 64 do
+	for _ = 1, 64 do
 		t[#t + 1] = string.char(math.floor(math.random() * 94 + 32))
 	end
-	
+
 	-- Supply the thread id
 	-- Supply means push + wait until received.
 	thread_lily_id = table.concat(t)
@@ -567,13 +577,13 @@ if love.image then
 	end)
 end
 
-if love.math and love._version < "0.11.0" then
+if love.math and love._version < "11.0" then
 	lily_handler_func("compress", 2, function(t)
-		-- lily.compress expects LOVE 0.11 order. That's it, format first then data then level
+		-- lily.compress expects LOVE 11.0 order. That's it, format first then data then level
 		return love.math.compress(t[2], t[1], t[3])
 	end)
 	lily_handler_func("decompress", 1, function(t)
-		-- lily.decompress expects LOVE 0.11 order too.
+		-- lily.decompress expects LOVE 11.0 order too.
 		if type(t[1]) == "string" then
 			-- string supplied as first argument (format)
 			return love.math.decompress(t[2], t[1])
@@ -607,7 +617,7 @@ end
 -- Meant to be passed to Channel:performAtomic
 local function decrease_task_count()
 	local task_count = channel_info:pop()
-	
+
 	if not(task_count) then return end
 	channel_info:push(task_count - 1)
 end
@@ -621,30 +631,29 @@ while channel_info:performAtomic(not_quit) do
 	local tid = channel:demand()
 	local tasktype = channel:demand()
 	local req_id = channel:demand()
-	
+
 	if not(lily_processor[tasktype]) then
 		-- We don't know such event.
 		while channel:getCount() > 0 do
 			if channel:peek() == thread_lily_id then
 				break
 			end
-			
+
 			channel:pop()
 		end
 	else
 		-- We know such event.
 		local task = lily_processor[tasktype]
 		local inputs = {}
-		
+
 		for i = 1, task.minarg do
 			inputs[i] = channel:demand()
 		end
-		
+
 		local result = {pcall(task.handler, inputs)}
-		
+
 		if result[1] == false then
 			-- Error
-			--print(result[2])
 			push_data(req_id, errorindicator, result[2])
 		else
 			-- Remove first element
@@ -652,11 +661,10 @@ while channel_info:performAtomic(not_quit) do
 				result[i - 1] = result[i]
 			end
 			result[#result] = nil
-			
+
 			-- Unfortunately, due to default love.run way to handle events
 			-- we can't pass more than 6 arguments to event.
 			-- We must pass "req_id", which means we only able to return 5 values.
-			
 			if #result == 0 then
 				push_data(req_id)
 			elseif #result == 1 then
@@ -672,7 +680,7 @@ while channel_info:performAtomic(not_quit) do
 			end
 		end
 	end
-	
+
 	channel_info:performAtomic(decrease_task_count)
 end
 ]===]
@@ -682,6 +690,12 @@ return lily
 
 --[[
 Changelog:
+v2.0.5: 02-05-2018
+> Fixed LOVE 11.0 detection
+
+v2.0.4: 09-01-2018
+> Fixed if love.data emulation is used in 0.10.0
+
 v2.0.2: 04-01-2018
 > Fixed random crash (again)
 > Fixed when lily in folder, it doesn't work

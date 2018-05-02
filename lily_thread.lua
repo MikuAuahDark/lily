@@ -1,14 +1,14 @@
 -- LOVE Async Loading Library (Thread Part)
 -- Copyright (c) 2039 Dark Energy Processor
--- 
+--
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
 -- arising from the use of this software.
--- 
+--
 -- Permission is granted to anyone to use this software for any purpose,
 -- including commercial applications, and to alter it and redistribute it
 -- freely, subject to the following restrictions:
--- 
+--
 -- 1. The origin of this software must not be misrepresented; you must not
 --    claim that you wrote the original software. If you use this software
 --    in a product, an acknowledgment in the product documentation would be
@@ -17,26 +17,27 @@
 --    misrepresented as being the original software.
 -- 3. This notice may not be removed or altered from any source distribution.
 
-require("love.event")
-local love = love
+local love = require("love")
 local modules, seed, channel, channel_info, errorindicator = ...
 local nts_modules = {"graphics", "window"}
 local has_graphics = false
 
+-- We need love.event, always.
+require("love.event")
 math.randomseed((math.random() + seed) * 1073741823.5)
 
 -- Load modules
-for n, v in pairs(modules) do
+for _, v in pairs(modules) do
 	local f = false
 	if v == "graphics" then has_graphics = true end
-	
+
 	for i = 1, #nts_modules do
 		if nts_modules[i] == v then
 			f = true
 			break
 		end
 	end
-	
+
 	if not(f) then
 		require("love."..v)
 	end
@@ -47,10 +48,10 @@ do
 	-- Generate our lily thread id
 	-- Lily thread id consist of 64 printable ASCII char
 	local t = {}
-	for i = 1, 64 do
+	for _ = 1, 64 do
 		t[#t + 1] = string.char(math.floor(math.random() * 94 + 32))
 	end
-	
+
 	-- Supply the thread id
 	-- Supply means push + wait until received.
 	thread_lily_id = table.concat(t)
@@ -125,13 +126,13 @@ if love.image then
 	end)
 end
 
-if love.math and love._version < "0.11.0" then
+if love.math and love._version < "11.0" then
 	lily_handler_func("compress", 2, function(t)
-		-- lily.compress expects LOVE 0.11 order. That's it, format first then data then level
+		-- lily.compress expects LOVE 11.0 order. That's it, format first then data then level
 		return love.math.compress(t[2], t[1], t[3])
 	end)
 	lily_handler_func("decompress", 1, function(t)
-		-- lily.decompress expects LOVE 0.11 order too.
+		-- lily.decompress expects LOVE 11.0 order too.
 		if type(t[1]) == "string" then
 			-- string supplied as first argument (format)
 			return love.math.decompress(t[2], t[1])
@@ -165,7 +166,7 @@ end
 -- Meant to be passed to Channel:performAtomic
 local function decrease_task_count()
 	local task_count = channel_info:pop()
-	
+
 	if not(task_count) then return end
 	channel_info:push(task_count - 1)
 end
@@ -179,30 +180,29 @@ while channel_info:performAtomic(not_quit) do
 	local tid = channel:demand()
 	local tasktype = channel:demand()
 	local req_id = channel:demand()
-	
+
 	if not(lily_processor[tasktype]) then
 		-- We don't know such event.
 		while channel:getCount() > 0 do
 			if channel:peek() == thread_lily_id then
 				break
 			end
-			
+
 			channel:pop()
 		end
 	else
 		-- We know such event.
 		local task = lily_processor[tasktype]
 		local inputs = {}
-		
+
 		for i = 1, task.minarg do
 			inputs[i] = channel:demand()
 		end
-		
+
 		local result = {pcall(task.handler, inputs)}
-		
+
 		if result[1] == false then
 			-- Error
-			--print(result[2])
 			push_data(req_id, errorindicator, result[2])
 		else
 			-- Remove first element
@@ -210,11 +210,10 @@ while channel_info:performAtomic(not_quit) do
 				result[i - 1] = result[i]
 			end
 			result[#result] = nil
-			
+
 			-- Unfortunately, due to default love.run way to handle events
 			-- we can't pass more than 6 arguments to event.
 			-- We must pass "req_id", which means we only able to return 5 values.
-			
 			if #result == 0 then
 				push_data(req_id)
 			elseif #result == 1 then
@@ -230,6 +229,6 @@ while channel_info:performAtomic(not_quit) do
 			end
 		end
 	end
-	
+
 	channel_info:performAtomic(decrease_task_count)
 end
