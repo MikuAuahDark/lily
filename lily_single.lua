@@ -339,10 +339,10 @@ function multilily_methods.__index.getValues(this, index)
 end
 
 function multilily_methods.__index.getCount(this)
-	return #this.liles
+	return #this.lilies
 end
 
-function miltilily_methods.__index.getLoadedCount(this)
+function multilily_methods.__index.getLoadedCount(this)
 	return this.completed_request
 end
 

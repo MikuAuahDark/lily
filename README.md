@@ -241,7 +241,9 @@ Gets all result value from all `LilyObject`.
 
 Returns: table, where at index `n` is correstpond to nth-`LilyObject`.
 
-### `number MultiLilyObject:getLoadedCount()`
+*************************************************
+
+### `number MultiLilyObject:getCount()`
 
 Retrieve amount of Lily objects to be loaded. This includes completed one.
 
