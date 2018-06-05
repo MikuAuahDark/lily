@@ -42,7 +42,6 @@ function love.load()
 		{"newImage", "image1-0.png"},	-- You can use string
 		{lily.newImage, love.filesystem.newFile("image1-1.png")},	-- or the function object
 	})
-	local a = love.timer.getTime()
 	multilily:onComplete(function(_, lilies)
 		image1 = lilies[1][1]
 		image2 = lilies[2][1]
@@ -107,6 +106,8 @@ Available functions:
 
 * newImage (`love.graphics.newImage`)
 
+* newCubeImage (`love.graphics.newCubeImage`) \*\*
+
 * newVideo (`love.graphics.newVideo`)
 
 * encodeImageData(`ImageData`, ...) (`ImageData:encode(...)`)
@@ -125,7 +126,9 @@ Available functions:
 
 * newVideoStream (`love.video.newVideoStream`)
 
-\* - The used function is different in LOVE 0.11.0, but it still can be used and the function name (and signature) in Lily remains same.
+\* - The used function is different in LOVE 11.0, but it still can be used and the function name (and signature) in Lily remains same.
+
+\*\* - Only on supported systems and requires at least LOVE 11.0
 
 *************************************************
 
@@ -237,3 +240,17 @@ Returns: Value depends on Lily request
 Gets all result value from all `LilyObject`.
 
 Returns: table, where at index `n` is correstpond to nth-`LilyObject`.
+
+### `number MultiLilyObject:getLoadedCount()`
+
+Retrieve amount of Lily objects to be loaded. This includes completed one.
+
+Returns: Amount of Lily object needs to be loaded.
+
+*************************************************
+
+### `number MultiLilyObject:getLoadedCount()`
+
+Gets amount of loaded objects.
+
+Returns: Amount of objects loaded. If this is same as `MultiLilyObject:getLoadedCount()` then it's fully loaded.

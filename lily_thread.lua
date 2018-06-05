@@ -73,7 +73,9 @@ local function lily_handler_func(reqtype, minarg, handler)
 end
 
 if love.audio then
-	lily_handler_func("newSource", 1, function(t) return love.audio.newSource(t[1], t[2]) end)
+	lily_handler_func("newSource", 1, function(t)
+		return love.audio.newSource(t[1], t[2])
+	end)
 end
 
 -- Always exist
@@ -108,6 +110,25 @@ if has_graphics then
 	end)
 	lily_handler_func("newVideo", 1, function(t)
 		return love.video.newVideoStream(t[1]), t[2]
+	end)
+	lily_handler_func("newCubeImage", 1, function(t)
+		-- If it's not table, then it should be processed with
+		-- love.image.newCubeFaces (undocumented function)
+		if type(t[1]) ~= "table" then
+			local id = t[1]
+			if type(id) ~= "userdata" or id:type() ~= "ImageData" then
+				id = love.image.newImageData(id)
+			end
+			t[1] = {love.image.newCubeFaces(id)}
+		end
+		for i = 1, 6 do
+			local v = t[1][i]
+			local t = v:type()
+			if type(v) ~= "userdata" or (t ~= "ImageData" and t ~= "CompressedImageData") then
+				t[1][i] = love.image.newImageData(v)
+			end
+		end
+		return t[1], t[2]
 	end)
 end
 

@@ -23,7 +23,7 @@
 -- 2. When you're handling "quit" event and you integrate Lily into
 --    your `love.run` loop, call `lily.quit` before `return`.
 
-local lily = {_VERSION = "2.0.5"}
+local lily = {_VERSION = "2.0.6"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 
@@ -287,6 +287,13 @@ multilily_methods.__index.loaded = lily_methods.__index.complete
 multilily_methods.__index.error = lily_methods.__index.error
 -- complete(lilydatas)
 multilily_methods.__index.complete = lily_methods.__index.complete
+-- error handler
+local miltilily_single_lily_error_handler = function(userdata, msg)
+	-- The userdata:
+	-- 1st index is lilyindex, 2nd index is multilily object
+	local multi = userdata[2]
+	multi.error(multi.userdata, userdata[1], msg)
+end
 
 function multilily_methods.__len(this)
 	return #this.lilies
@@ -304,11 +311,6 @@ end
 
 function multilily_methods.__index.onError(this, func)
 	this.error = assert(type(func) == "function" and func, "bad argument #1 to 'lilyObject:onError' (function expected)")
-
-	for i = 1, #this.lilies do
-		this.lilies[i]:onError(this.error)
-	end
-
 	return this
 end
 
@@ -338,6 +340,10 @@ end
 
 function multilily_methods.__index.getCount(this)
 	return #this.liles
+end
+
+function miltilily_methods.__index.getLoadedCount(this)
+	return this.completed_request
 end
 
 local function multilily_onLoaded(info, ...)
@@ -386,6 +392,7 @@ function lily.loadMulti(tabdecl)
 		local lilyobj = func(unpack(tab, 2))
 			:setUserData({i, this})
 			:onComplete(multilily_onLoaded)
+			:onError(miltilily_single_lily_error_handler)
 
 		this.lilies[#this.lilies + 1] = lilyobj
 	end
@@ -421,6 +428,14 @@ if love.graphics then
 	lily_new_func("newFont", wraphandler(love.graphics.newFont))
 	lily_new_func("newImage", wraphandler(love.graphics.newImage))
 	lily_new_func("newVideo", wraphandler(love.graphics.newVideo))
+	-- Check if LOVE 11.0
+	if love._version >= "11.0" then
+		-- Not all system support cobe image, so make it unavailable
+		-- if that's the case
+		if love.graphics.getTextureTypes().cube then
+			lily_new_func("newCubeImage", wraphandler(love.graphics.newCubeImage))
+		end
+	end
 end
 
 if love.image then
@@ -524,7 +539,9 @@ local function lily_handler_func(reqtype, minarg, handler)
 end
 
 if love.audio then
-	lily_handler_func("newSource", 1, function(t) return love.audio.newSource(t[1], t[2]) end)
+	lily_handler_func("newSource", 1, function(t)
+		return love.audio.newSource(t[1], t[2])
+	end)
 end
 
 -- Always exist
@@ -559,6 +576,25 @@ if has_graphics then
 	end)
 	lily_handler_func("newVideo", 1, function(t)
 		return love.video.newVideoStream(t[1]), t[2]
+	end)
+	lily_handler_func("newCubeImage", 1, function(t)
+		-- If it's not table, then it should be processed with
+		-- love.image.newCubeFaces (undocumented function)
+		if type(t[1]) ~= "table" then
+			local id = t[1]
+			if type(id) ~= "userdata" or id:type() ~= "ImageData" then
+				id = love.image.newImageData(id)
+			end
+			t[1] = {love.image.newCubeFaces(id)}
+		end
+		for i = 1, 6 do
+			local v = t[1][i]
+			local t = v:type()
+			if type(v) ~= "userdata" or (t ~= "ImageData" and t ~= "CompressedImageData") then
+				t[1][i] = love.image.newImageData(v)
+			end
+		end
+		return t[1], t[2]
 	end)
 end
 
@@ -690,6 +726,11 @@ return lily
 
 --[[
 Changelog:
+v2.0.6: 05-06-2018
+> Added `lily.newCubeImage`
+> Fix error handler function signature incorrect for MultiLilyObject
+> Added `MultiLilyObject:getLoadedCount()`
+
 v2.0.5: 02-05-2018
 > Fixed LOVE 11.0 detection
 
