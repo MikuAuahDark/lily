@@ -199,8 +199,12 @@ end
 -- If main thread puses anything to channel_info, or pop the count, that means we should exit
 while channel_info:performAtomic(not_quit) do
 	local tid = channel:demand()
+	if not(not_quit()) then return end -- These 3 checks must be on each demand!
 	local tasktype = channel:demand()
+	if not(not_quit()) then return end -- so even on incomplete, we cna quit
 	local req_id = channel:demand()
+	if not(not_quit()) then return end -- faster and more earlier.
+	
 
 	if not(lily_processor[tasktype]) then
 		-- We don't know such event.

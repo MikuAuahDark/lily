@@ -23,7 +23,7 @@
 -- 2. When you're handling "quit" event and you integrate Lily into
 --    your `love.run` loop, call `lily.quit` before `return`.
 
-local lily = {_VERSION = "2.0.6"}
+local lily = {_VERSION = "2.0.7"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 
@@ -182,6 +182,10 @@ function lily.quit()
 			-- Pop the task count to tell lily threads to stop
 			a.channel_info:pop()
 			-- Wait it to finish
+			-- Push thread id so demand returns a value
+			-- and it unblocks the thread
+			a.channel:push(a.id)
+			-- Wait
 			a.thread:wait()
 			-- Clear
 			lily.threads[i] = nil
@@ -665,8 +669,12 @@ end
 -- If main thread puses anything to channel_info, or pop the count, that means we should exit
 while channel_info:performAtomic(not_quit) do
 	local tid = channel:demand()
+	if not(not_quit()) then return end -- These 3 checks must be on each demand!
 	local tasktype = channel:demand()
+	if not(not_quit()) then return end -- so even on incomplete, we cna quit
 	local req_id = channel:demand()
+	if not(not_quit()) then return end -- faster and more earlier.
+	
 
 	if not(lily_processor[tasktype]) then
 		-- We don't know such event.
@@ -726,6 +734,9 @@ return lily
 
 --[[
 Changelog:
+v2.0.7: 06-06-2018
+> Fixed `lily.quit` deadlock.
+
 v2.0.6: 05-06-2018
 > Added `lily.newCubeImage`
 > Fix error handler function signature incorrect for MultiLilyObject

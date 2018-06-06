@@ -150,9 +150,10 @@ Returns: Table with n-elements depending on `lily.getThreadCount()`.
 
 ### `void lily.quit()`
 
-Uninitializes Lily.
+Uninitializes Lily. Uninitialize all threads. Call this just before your game quit (in `love.quit()`). Not calling
+this function in iOS and Android can cause strange crash when re-starting your game!
 
-> This function should only be called if you plan restarting your game with `love.event.quit("restart")`. This is true when using LOVE under iOS!
+It's good idea to call this function regardless of the platform.
 
 *************************************************
 
