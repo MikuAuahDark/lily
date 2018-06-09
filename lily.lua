@@ -23,9 +23,10 @@
 -- 2. When you're handling "quit" event and you integrate Lily into
 --    your `love.run` loop, call `lily.quit` before `return`.
 
-local lily = {_VERSION = "2.0.7"}
+local lily = {_VERSION = "2.0.8"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
+local is_love_11 = love._version >= "11.0"
 
 -- Get current script directory
 local _arg = {...}
@@ -47,7 +48,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua")
 -- List active modules
 local excluded_modules = {"event", "joystick", "keyboard", "mouse", "physics", "system", "timer", "touch", "window"}
 lily.modules = {}
-if love._version >= "11.0" then lily.modules[1] = "data" end
+if is_love_11 then lily.modules[1] = "data" end
 for a in pairs(love._modules) do
 	local f = false
 	for i = 1, #excluded_modules do
@@ -273,6 +274,7 @@ local function new_lily_object(reqtype, ...)
 	thread.channel_info:performAtomic(increase_task_count)
 
 	-- Push arguments
+	thread.channel:push(#this.arguments)
 	for i = 1, #this.arguments do
 		thread.channel:push(this.arguments[i])
 	end
@@ -288,7 +290,9 @@ local multilily_methods = {__index = {}}
 -- loaded(multilily, val)
 multilily_methods.__index.loaded = lily_methods.__index.complete
 -- error(msg)
-multilily_methods.__index.error = lily_methods.__index.error
+function multilily_methods.__index.error(_, __, msg)
+	error(msg, 2)
+end
 -- complete(lilydatas)
 multilily_methods.__index.complete = lily_methods.__index.complete
 -- error handler
@@ -433,7 +437,7 @@ if love.graphics then
 	lily_new_func("newImage", wraphandler(love.graphics.newImage))
 	lily_new_func("newVideo", wraphandler(love.graphics.newVideo))
 	-- Check if LOVE 11.0
-	if love._version >= "11.0" then
+	if is_love_11 then
 		-- Not all system support cobe image, so make it unavailable
 		-- if that's the case
 		if love.graphics.getTextureTypes().cube then
@@ -449,7 +453,7 @@ if love.image then
 	lily_new_func("pasteImageData", dummyhandler)
 end
 
-if love.math and love._version < "11.0" or love.data then
+if love.math and not(is_love_11) or love.data then
 	local function dataGetString(_, value)
 		return value:getString()
 	end
@@ -473,6 +477,10 @@ return lily
 
 --[[
 Changelog:
+v2.0.8: 09-06-2018
+> Fixed additional arguments were not passed to task handler in separate thread
+> Make error message more meaningful (but the stack traceback is still meaningless)
+
 v2.0.7: 06-06-2018
 > Fixed `lily.quit` deadlock.
 

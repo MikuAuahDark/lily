@@ -23,9 +23,10 @@
 -- 2. When you're handling "quit" event and you integrate Lily into
 --    your `love.run` loop, call `lily.quit` before `return`.
 
-local lily = {_VERSION = "2.0.7"}
+local lily = {_VERSION = "2.0.8"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
+local is_love_11 = love._version >= "11.0"
 
 -- Get current script directory
 local _arg = {...}
@@ -47,7 +48,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua")
 -- List active modules
 local excluded_modules = {"event", "joystick", "keyboard", "mouse", "physics", "system", "timer", "touch", "window"}
 lily.modules = {}
-if love._version >= "11.0" then lily.modules[1] = "data" end
+if is_love_11 then lily.modules[1] = "data" end
 for a in pairs(love._modules) do
 	local f = false
 	for i = 1, #excluded_modules do
@@ -273,6 +274,7 @@ local function new_lily_object(reqtype, ...)
 	thread.channel_info:performAtomic(increase_task_count)
 
 	-- Push arguments
+	thread.channel:push(#this.arguments)
 	for i = 1, #this.arguments do
 		thread.channel:push(this.arguments[i])
 	end
@@ -288,7 +290,9 @@ local multilily_methods = {__index = {}}
 -- loaded(multilily, val)
 multilily_methods.__index.loaded = lily_methods.__index.complete
 -- error(msg)
-multilily_methods.__index.error = lily_methods.__index.error
+function multilily_methods.__index.error(_, __, msg)
+	error(msg, 2)
+end
 -- complete(lilydatas)
 multilily_methods.__index.complete = lily_methods.__index.complete
 -- error handler
@@ -433,7 +437,7 @@ if love.graphics then
 	lily_new_func("newImage", wraphandler(love.graphics.newImage))
 	lily_new_func("newVideo", wraphandler(love.graphics.newVideo))
 	-- Check if LOVE 11.0
-	if love._version >= "11.0" then
+	if is_love_11 then
 		-- Not all system support cobe image, so make it unavailable
 		-- if that's the case
 		if love.graphics.getTextureTypes().cube then
@@ -449,7 +453,7 @@ if love.image then
 	lily_new_func("pasteImageData", dummyhandler)
 end
 
-if love.math and love._version < "11.0" or love.data then
+if love.math and not(is_love_11) or love.data then
 	local function dataGetString(_, value)
 		return value:getString()
 	end
@@ -491,6 +495,7 @@ local love = require("love")
 local modules, seed, channel, channel_info, errorindicator = ...
 local nts_modules = {"graphics", "window"}
 local has_graphics = false
+local is_love_11 = love._version >= "11.0"
 
 -- We need love.event, always.
 require("love.event")
@@ -543,7 +548,10 @@ local function lily_handler_func(reqtype, minarg, handler)
 end
 
 if love.audio then
-	lily_handler_func("newSource", 1, function(t)
+	-- LOVE 11.0 requires 2 arguments to love.audio.newSource
+	-- but LOVE 0.10.0 only requires 1
+	local argc = is_love_11 and 2 or 1
+	lily_handler_func("newSource", argc, function(t)
 		return love.audio.newSource(t[1], t[2])
 	end)
 end
@@ -576,7 +584,7 @@ if has_graphics then
 	end)
 	lily_handler_func("newImage", 1, function(t)
 		local s, x = pcall(love.image.newCompressedData, t[1])
-		return s and x or love.image.newImageData(t[1])
+		return (s and x or love.image.newImageData(t[1])), select(2, unpack(t))
 	end)
 	lily_handler_func("newVideo", 1, function(t)
 		return love.video.newVideoStream(t[1]), t[2]
@@ -617,7 +625,7 @@ if love.image then
 	end)
 end
 
-if love.math and love._version < "11.0" then
+if love.math and not(is_love_11) then
 	lily_handler_func("compress", 2, function(t)
 		-- lily.compress expects LOVE 11.0 order. That's it, format first then data then level
 		return love.math.compress(t[2], t[1], t[3])
@@ -668,6 +676,12 @@ end
 
 -- If main thread puses anything to channel_info, or pop the count, that means we should exit
 while channel_info:performAtomic(not_quit) do
+	-- Structure
+	-- 1. thread_id
+	-- 2. task type
+	-- 3. request ID
+	-- 4. argument count
+	-- n arguments.
 	local tid = channel:demand()
 	if not(not_quit()) then return end -- These 3 checks must be on each demand!
 	local tasktype = channel:demand()
@@ -678,11 +692,8 @@ while channel_info:performAtomic(not_quit) do
 
 	if not(lily_processor[tasktype]) then
 		-- We don't know such event.
-		while channel:getCount() > 0 do
-			if channel:peek() == thread_lily_id then
-				break
-			end
-
+		local argcount = channel:demand()
+		for i = 1, argcount do
 			channel:pop()
 		end
 	else
@@ -690,37 +701,44 @@ while channel_info:performAtomic(not_quit) do
 		local task = lily_processor[tasktype]
 		local inputs = {}
 
-		for i = 1, task.minarg do
+		-- Get all arguments first, so the channel is clean.
+		local argcount = channel:demand()
+		for i = 1, argcount do
 			inputs[i] = channel:demand()
 		end
-
-		local result = {pcall(task.handler, inputs)}
-
-		if result[1] == false then
-			-- Error
-			push_data(req_id, errorindicator, result[2])
+		
+		if argcount < task.minarg then
+			-- Error: too few arguments
+			push_data(req_id, errorindicator, string.format("'%s': too few arguments (at least %d is required)", tasktype, task.minarg))
 		else
-			-- Remove first element
-			for i = 2, #result do
-				result[i - 1] = result[i]
-			end
-			result[#result] = nil
+			local result = {pcall(task.handler, inputs)}
 
-			-- Unfortunately, due to default love.run way to handle events
-			-- we can't pass more than 6 arguments to event.
-			-- We must pass "req_id", which means we only able to return 5 values.
-			if #result == 0 then
-				push_data(req_id)
-			elseif #result == 1 then
-				push_data(req_id, result[1])
-			elseif #result == 2 then
-				push_data(req_id, result[1], result[2])
-			elseif #result == 3 then
-				push_data(req_id, result[1], result[2], result[3])
-			elseif #result == 4 then
-				push_data(req_id, result[1], result[2], result[3], result[4])
-			elseif #result >= 5 then
-				push_data(req_id, result[1], result[2], result[3], result[4], result[5])
+			if result[1] == false then
+				-- Error
+				push_data(req_id, errorindicator, string.format("'%s': %s", tasktype, result[2]))
+			else
+				-- Remove first element
+				for i = 2, #result do
+					result[i - 1] = result[i]
+				end
+				result[#result] = nil
+
+				-- Unfortunately, due to default love.run way to handle events
+				-- we can't pass more than 6 arguments to event.
+				-- We must pass "req_id", which means we only able to return 5 values.
+				if #result == 0 then
+					push_data(req_id)
+				elseif #result == 1 then
+					push_data(req_id, result[1])
+				elseif #result == 2 then
+					push_data(req_id, result[1], result[2])
+				elseif #result == 3 then
+					push_data(req_id, result[1], result[2], result[3])
+				elseif #result == 4 then
+					push_data(req_id, result[1], result[2], result[3], result[4])
+				elseif #result >= 5 then
+					push_data(req_id, result[1], result[2], result[3], result[4], result[5])
+				end
 			end
 		end
 	end
@@ -734,6 +752,10 @@ return lily
 
 --[[
 Changelog:
+v2.0.8: 09-06-2018
+> Fixed additional arguments were not passed to task handler in separate thread
+> Make error message more meaningful (but the stack traceback is still meaningless)
+
 v2.0.7: 06-06-2018
 > Fixed `lily.quit` deadlock.
 
