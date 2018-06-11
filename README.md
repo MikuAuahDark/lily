@@ -114,6 +114,10 @@ Available functions:
 
 * newCubeImage (`love.graphics.newCubeImage`) \*
 
+* newArrayImage (`love.graphics.newCubeImage`) \*
+
+* newVolumeImage (`love.graphics.newCubeImage`) \*
+
 * newVideo (`love.graphics.newVideo`)
 
 * encodeImageData(`ImageData`, ...) (`ImageData:encode(...)`)
@@ -132,7 +136,7 @@ Available functions:
 
 * newVideoStream (`love.video.newVideoStream`)
 
-\* - Only on supported systems
+\* - Only on supported systems. Nested tables for mipmaps is not supported at the moment.
 
 *************************************************
 

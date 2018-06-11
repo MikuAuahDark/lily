@@ -80,7 +80,20 @@ if love.system then
 	amountOfCPU = love.system.getProcessorCount()
 elseif love._os == "Windows" then
 	-- Windows. Use NUMBER_OF_PROCESSORS environment variable
-	amountOfCPU = assert(tonumber(os.getenv("NUMBER_OF_PROCESSORS")), "Invalid NUMBER_OF_PROCESSORS")
+	amountOfCPU = tonumber(os.getenv("NUMBER_OF_PROCESSORS"))
+
+	-- We still have some workaround if that fails
+	if not(amountOfCPU) and os.execute("wmic exit") == 0 then
+		-- Use WMIC
+		local a = io.popen("wmic cpu get NumberOfLogicalProcessors")
+		a:read("*l")
+		amountOfCPU = a:read("*n")
+		a:close()
+	end
+
+	-- If it's fallback to 1, it's either very weird system configuration!
+	-- (except if the CPU only has 1 processor)
+	amountOfCPU = amountOfCPU or 1
 elseif os.execute() == 1 then
 	-- Ok we have shell support
 	if os.execute("nproc") == 0 then
@@ -98,6 +111,9 @@ local errorChannel = love.thread.newChannel()
 lily.taskChannel = love.thread.newChannel()
 -- Main channel used to pull task
 lily.dataPullChannel = love.thread.newChannel()
+lily.dataPullChannel:push("automatic") -- Use LOVE event handling by default
+-- Main channel to determine how to push event
+lily.updateModeChannel = love.thread.newChannel()
 
 -- Variable used to indicate that embedded code should be used
 -- instead of loading file (lily_single)
@@ -107,10 +123,19 @@ local lilyThreadScript = nil
 -- then called later
 local function initThreads()
 	for i = 1, amountOfCPU do
-		lily.threads[i] = love.thread.newThread(
+		-- Create thread
+		local a = love.thread.newThread(
 			lilyThreadScript or
 			(modulePath:gsub("%.", "/").."lily_thread.lua")
 		)
+		-- Arguments are:
+		-- Loaded modules
+		-- errorChannel
+		-- taskChannel
+		-- dataPullChannel
+		-- updateModeChannel
+		a:start(lily.modules, errorChannel, lily.taskChannel, lily.dataPullChannel, lily.updateModeChannel)
+		lily.threads[i] = a
 	end
 end
 
@@ -256,20 +281,21 @@ multiObjectMeta.__len = multiObjectMethod.getCount
 
 -- luacheck: pop
 
--- Add Lily event handler to love.handlers (lily_resp)
-function love.handlers.lily_resp(reqID, ...)
+-- Lily global event handling function
+local function lilyEventHandler(reqID, v1, v2)
 	-- Check if specified request exist
 	if lily.request[reqID] then
 		local lilyObject = lily.request[reqID]
 		lily.request[reqID] = nil
 
 		-- Check for error
-		if select(1, ...) == errorChannel then
+		if v1 == errorChannel then
 			-- Second argument is the error message
-			lilyObject.error(lilyObject.userdata, (select(2, ...)))
+			lilyObject.error(lilyObject.userdata, v2)
 		else
+			-- "v2" is returned values
 			-- Call main thread handler for specified request type
-			local values = {pcall(lily.handlers[lilyObject.requestType], lilyObject, select(1, ...))}
+			local values = {pcall(lily.handlers[lilyObject.requestType], lilyObject, unpack(v2))}
 			-- If values[1] is false then there's error
 			if not(values[1]) then
 				lilyObject.error(lilyObject.userdata, values[2])
@@ -283,6 +309,8 @@ function love.handlers.lily_resp(reqID, ...)
 		end
 	end
 end
+-- Add Lily event handler to love.handlers (lily_resp)
+love.handlers.lily_resp = lilyEventHandler
 
 --- Get amount of thread for processing
 -- In most cases, this is amount of logical CPU available.
@@ -314,6 +342,35 @@ function lily.quit()
 
 	-- Reset package table
 	package.loaded.lily = nil
+end
+
+do
+local function atomicSetUpdateMode(_, mode)
+	lily.updateModeChannel:pop()
+	lily.updateModeChannel:push(mode)
+end
+--- Set update mode.
+-- tell Lily to pull data by using LOVE event handler or by
+-- using `lily.update` function.
+-- @tparam string mode Either `automatic` or `manual`.
+function lily.setUpdateMode(mode)
+	if mode ~= "automatic" and mode ~= "manual" then
+		error("bad argument #1 to 'setUpdateMode' (\"automatic\" or \"manual\" expected)", 2)
+	end
+	-- Set update mode
+	lily.updateModeChannel:performAtomic(atomicSetUpdateMode)
+end
+end -- do
+
+--- Pull processed data from other threads.
+-- Signals other loader object (calling their callback function) when necessary.
+function lily.update()
+	while lily.dataPullChannel:getCount() > 0 do
+		-- Pop data
+		local data = lily.dataPullChannel:pop()
+		-- Pass to event handler
+		lilyEventHandler(data[1], data[2], data[3])
+	end
 end
 
 ----------------------------------------
@@ -355,13 +412,13 @@ local function newLilyFunction(requestType, handlerFunc)
 
 		-- Push task
 		-- See structure in lily_thread.lua
-		lily.taskChannel:push(reqID)
-		lily.taskChannel:push(requestType)
-		lily.taskChannel:push(#args)
+		local treq = {reqID, requestType, #args}
 		-- Push arguments
 		for i = 1, #args do
-			lily.taskChannel:push(args[i])
+			treq[i + 3] = args[i]
 		end
+		-- Add to task channel
+		lily.taskChannel:push(treq)
 		-- Insert to request table (to prevent GC collecting it)
 		lily.request[reqID] = this
 		-- Return
@@ -394,6 +451,60 @@ end
 
 -- Most love.graphics functions are not meant for multithread, but we can circumvent that.
 if love.graphics then
+	-- Internal function
+	local function defMultiToSingleError(udata, _, msg)
+		udata[1].error(udata[1].userdata, msg)
+	end
+	-- Internal function to generate complete callback
+	local function defImageMultiGen(f)
+		return function(udata, values)
+			local this = udata[1]
+			local v = {}
+			for i = 1, #values do
+				v[i] = values[i][1]
+			end
+			this.values = f(v, udata[2])
+			this.complete(this.userdata, this.values)
+		end
+	end
+
+	-- Internal function to generate layering-based function
+	local function genLayerImage(name, handlerFunc)
+		local defCompleteFunction = defImageMultiGen(handlerFunc)
+
+		lily.handlers[name] = wraphandler(handlerFunc)
+		lily[name] = function(layers, setting)
+			local multiCount = {}
+			for _, v in ipairs(layers) do
+				if type(v) == "table" then
+					-- List of mipmaps
+					error("Nested table (mipmaps) is not supported at the moment")
+				else
+					multiCount[#multiCount + 1] = {lily.newImage, v, setting}
+				end
+			end
+			-- Check count
+			if #multiCount == 0 then
+				error("Layers is empty", 2)
+			end
+
+			-- Initialize
+			local this = setmetatable({}, lilyObjectMeta)
+			-- Values
+			this.requestType = name
+			this.done = false
+			this.values = nil
+
+			this.multi = lily.loadMulti(multiCount)
+			:setUserData({this, setting})
+			:onComplete(defCompleteFunction)
+			:onError(defMultiToSingleError)
+			-- Return
+			return this
+		end
+	end
+
+	-- Basic function which is supported on all systems
 	newLilyFunction("newFont", love.graphics.newFont)
 	newLilyFunction("newImage", love.graphics.newImage)
 	newLilyFunction("newVideo", love.graphics.newVideo)
@@ -402,7 +513,60 @@ if love.graphics then
 	local texType = love.graphics.getTextureTypes()
 	-- Not all system support cube image. Make it unavailable in that case.
 	if texType.cube then
-		--newLilyFunction("newCubeImage", love.graphics.newCubeImage)
+		-- Another internal function
+		local defNewCubeImageMulti = defImageMultiGen(love.graphics.newCubeImage)
+		lily.newCubeImage = function(layers, setting)
+			local multiCount = {}
+			-- If it's table, that means it contains list of files
+			if type(layers) == "table" then
+				assert(#layers == 6, "Invalid list of files (must be exactly 6)")
+				for _, v in ipairs(layers) do
+					if type(v) == "table" then
+						-- List of mipmaps
+						error("Nested table (mipmaps) is not supported at the moment")
+					else
+						multiCount[#multiCount + 1] = {lily.newImage, v, setting}
+					end
+				end
+				-- Are you specify tons of "Image" objects?
+				if #multiCount == 0 then
+					error("Nothing to parallelize", 2)
+				end
+			end
+
+			-- Initialize
+			local this = setmetatable({}, lilyObjectMeta)
+			local reqID = createReqID()
+			-- Values
+			this.requestType = "newCubeImage"
+			this.done = false
+			this.values = nil
+
+			-- If multi count is 0, that means it's just single file
+			if #multiCount == 0 then
+				-- Insert to request table
+				lily.request[reqID] = this
+				-- Create and push new task
+				local treq = {reqID, "newImage", 2, layers, setting}
+				lily.taskChannel:push(treq)
+			else
+				this.multi = lily.loadMulti(multiCount)
+				:setUserData({this, setting})
+				:onComplete(defNewCubeImageMulti)
+				:onError(defMultiToSingleError)
+			end
+			-- Return
+			return this
+		end
+		lily.handlers.newCubeImage = wraphandler(love.graphics.newCubeImage)
+	end
+	-- Not all system support array image
+	if texType.array then
+		genLayerImage("newArrayImage", love.graphics.newArrayImage)
+	end
+	-- Not all system support volume image
+	if texType.volume then
+		genLayerImage("newVolumeImage", love.graphics.newVolumeImage)
 	end
 end
 
@@ -419,6 +583,42 @@ end
 
 if love.video then
 	newLilyFunction("newVideoStream")
+end
+
+function lily.loadMulti(tabdecl)
+	local this = setmetatable({
+		lilies = {},
+		completedRequest = 0
+	}, multiObjectMeta)
+
+	for i = 1, #tabdecl do
+		local tab = tabdecl[i]
+
+		-- tab[1] is lily name, the rest is arguments
+		local func
+
+		if type(tab[1]) == "string" then
+			if lily[tab[1]] and lily.handlers[tab[1]] then
+				func = lily[tab[1]]
+			else
+				error("Invalid lily function ("..tab[1]..") at index #"..i)
+			end
+		elseif type(tab[1]) == "function" then
+			-- Must be `lily[function]`
+			func = tab[1]
+		else
+			error("Invalid lily function at index #"..i)
+		end
+
+		local lilyobj = func(unpack(tab, 2))
+			:setUserData({i, this})
+			:onComplete(multiObjectOnLoaded)
+			:onError(multiObjectChildErrorHandler)
+
+		this.lilies[#this.lilies + 1] = lilyobj
+	end
+
+	return this
 end
 
 -- do not remove this comment!
