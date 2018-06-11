@@ -57,6 +57,12 @@ function love.draw()
 end
 ```
 
+Version Compatibility
+---------------------
+
+Lily v3.0 is not compatible with LOVE 0.10.x. Latest version which is compatible with LOVE 0.10.x is Lily v2.0.8
+and can be found in `v2.0` branch!
+
 Install
 -------
 
@@ -106,7 +112,7 @@ Available functions:
 
 * newImage (`love.graphics.newImage`)
 
-* newCubeImage (`love.graphics.newCubeImage`) \*\*
+* newCubeImage (`love.graphics.newCubeImage`) \*
 
 * newVideo (`love.graphics.newVideo`)
 
@@ -118,17 +124,15 @@ Available functions:
 
 * pasteImageData(`ImageData`, ...) (`ImageData:paste(...)`)
 
-* compress(`format`, `data`, `level`; returns string) (`love.math.compress(data, format, level)`) *
+* compress(`love.data.compress`)
 
-* decompress(`format`, `data`; returns string) (`love.math.decompress(data, format)`) *
+* decompress(`love.data.decompress`)
 
 * newSoundData (`love.sound.newSoundData`)
 
 * newVideoStream (`love.video.newVideoStream`)
 
-\* - The used function is different in LOVE 11.0, but it still can be used and the function name (and signature) in Lily remains same.
-
-\*\* - Only on supported systems and requires at least LOVE 11.0
+\* - Only on supported systems
 
 *************************************************
 
@@ -140,20 +144,37 @@ Returns: Amount of threads used by Lily. This is mostly likely amount of logical
 
 *************************************************
 
-### `table lily.getThreadsTaskCount()`
-
-Retrieves the total pending task for every thread.
-
-Returns: Table with n-elements depending on `lily.getThreadCount()`.
-
-*************************************************
-
 ### `void lily.quit()`
 
 Uninitializes Lily. Uninitialize all threads. Call this just before your game quit (in `love.quit()`). Not calling
 this function in iOS and Android can cause strange crash when re-starting your game!
 
 It's good idea to call this function regardless of the platform.
+
+*************************************************
+
+### `bool lily.setUpdateMode(string mode)`
+
+Set update mode, whetever to tell Lily to pull data by using LOVE event handler or
+by using `lily.update` function.
+
+Parameters:
+
+* `mode` - Either `"automatic"` (use LOVE event handler) or `"manual"` (calling [`lily.update`](#void-lilyupdate) in `love.update`).
+
+Returns: `true` if success, `false` otherwise.
+
+> By default, Lily uses `"automatic"` method (using LOVE event handler).
+
+*************************************************
+
+### `void lily.update()`
+
+Pull processed data from other threads. Signals other loader object when necessary.
+
+Returns: none
+
+> This function only takes effect when using `"manual"` update mode (see [`lily.setUpdateMode`](#bool-lilysetupdatemodestring-mode))
 
 *************************************************
 
