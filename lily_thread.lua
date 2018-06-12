@@ -170,8 +170,8 @@ while true do
 	local tasktype = request[2]
 
 	-- If it's exist in lilyProcessor table that means it's valid event
-	if lilyProcessor[request[2]] then
-		local task = lilyProcessor[request[2]]
+	if lilyProcessor[tasktype] then
+		local task = lilyProcessor[tasktype]
 		local argc = request[3]
 		-- Check minarg count
 		if argc < task.minarg then
@@ -194,6 +194,9 @@ while true do
 				-- Error
 				pushData(request[1], errorChannel, string.format("'%s': %s", tasktype, result[2]))
 			end
+			-- Push data (v1 is true, v2 is return values)
+			table.remove(result, 1)
+			pushData(request[1], true, result)
 		end
 	end
 end

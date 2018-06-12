@@ -111,9 +111,9 @@ local errorChannel = love.thread.newChannel()
 lily.taskChannel = love.thread.newChannel()
 -- Main channel used to pull task
 lily.dataPullChannel = love.thread.newChannel()
-lily.dataPullChannel:push("automatic") -- Use LOVE event handling by default
 -- Main channel to determine how to push event
 lily.updateModeChannel = love.thread.newChannel()
+lily.updateModeChannel:push("automatic") -- Use LOVE event handling by default
 
 -- Variable used to indicate that embedded code should be used
 -- instead of loading file (lily_single)
@@ -159,6 +159,14 @@ function lilyObjectMethod:onComplete(func)
 	self.complete = assert(
 		type(func) == "function" and func,
 		"bad argument #1 to 'lilyObject:onComplete' (function expected)"
+	)
+	return self
+end
+
+function lilyObjectMethod:onError(func)
+	self.error = assert(
+		type(func) == "function" and func,
+		"bad argument #1 to 'lilyObject:onError' (function expected)"
 	)
 	return self
 end
@@ -324,17 +332,23 @@ end
 -- Not calling this function in iOS and Android can cause
 -- strange crash when re-starting your game!
 function lily.quit()
+	-- Clear up the task channel
+	while lily.taskChannel:getCount() > 0 do
+		lily.taskChannel:pop()
+	end
+
+	-- Push quit request in task channel
+	-- Anything that is not a table is considered as "exit"
 	for i = 1, amountOfCPU do
-		local a = lily.threads[i]
-		if a then
-			-- Pop the task count to tell lily threads to stop
-			a.channel_info:pop()
-			-- Wait it to finish
-			-- Push thread id so demand returns a value
-			-- and it unblocks the thread
-			a.channel:push(a.id)
+		lily.taskChannel:push(i)
+	end
+
+	-- Clean up threads
+	for i = 1, amountOfCPU do
+		local t = lily.threads[i]
+		if t then
 			-- Wait
-			a.thread:wait()
+			t:wait()
 			-- Clear
 			lily.threads[i] = nil
 		end
