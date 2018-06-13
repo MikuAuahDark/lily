@@ -641,7 +641,7 @@ return lily
 
 --[[
 Changelog:
-v3.0.0: Work In Progress
+v3.0.0: 13-06-2018
 > Major refactoring
 > Allow to set update mode, whetever to use Lily style (automatic) or love-loader style (manual)
 > New functions: newArrayImage and newVolumeImage (only on supported systems)
