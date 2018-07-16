@@ -60,8 +60,8 @@ end
 Version Compatibility
 ---------------------
 
-Lily v3.0 is not compatible with LOVE 0.10.x. Latest version which is compatible with LOVE 0.10.x is Lily v2.0.8
-and can be found in `v2.0` branch!
+Lily v3.0 is not compatible with LOVE 0.10.x. Latest version which is compatible with LOVE 0.10.x is Lily v2.0.x
+and can be found in `v2.0` branch. In case of bug fix, it will be backported to v2.0 branch when applicable.
 
 Install
 -------

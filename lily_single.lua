@@ -31,7 +31,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.0",
+	_VERSION = "3.0.1",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -761,7 +761,7 @@ end
 
 if hasGraphics then
 	lilyHandlerFunc("newFont", 1, function(t)
-		return love.font.newRasterizer(t[1]), t[2]
+		return love.font.newRasterizer(t[1], t[2])
 	end)
 	lilyHandlerFunc("newImage", 1, function(t)
 		local s, x = pcall(love.image.newCompressedData, t[1])
@@ -845,6 +845,9 @@ return lily
 
 --[[
 Changelog:
+v3.0.1: 16-07-2018
+> `lily.newFont` ignores size parameter
+
 v3.0.0: 13-06-2018
 > Major refactoring
 > Allow to set update mode, whetever to use Lily style (automatic) or love-loader style (manual)
