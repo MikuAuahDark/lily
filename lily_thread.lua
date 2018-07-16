@@ -106,7 +106,7 @@ end
 
 if has_graphics then
 	lily_handler_func("newFont", 1, function(t)
-		return love.font.newRasterizer(t[1]), t[2]
+		return love.font.newRasterizer(t[1], t[2]), t[2] -- This should work.
 	end)
 	lily_handler_func("newImage", 1, function(t)
 		local s, x = pcall(love.image.newCompressedData, t[1])
