@@ -23,7 +23,7 @@
 -- 2. When you're handling "quit" event and you integrate Lily into
 --    your `love.run` loop, call `lily.quit` before `return`.
 
-local lily = {_VERSION = "2.0.9"}
+local lily = {_VERSION = "2.0.10"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 local is_love_11 = love._version >= "11.0"
@@ -477,6 +477,9 @@ return lily
 
 --[[
 Changelog:
+v2.0.10: 18-07-2018
+> Fixed calling `lily.newCompressedData` crashes Lily thread
+
 v2.0.9: 16-07-2018
 > `lily.newFont` ignores size parameter
 

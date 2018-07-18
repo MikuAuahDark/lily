@@ -143,7 +143,7 @@ if love.image then
 	lily_handler_func("newImageData", 1, function(t)
 		return love.image.newImageData(t[1])
 	end)
-	lily_handler_func("newCompressedData", function(t)
+	lily_handler_func("newCompressedData", 1, function(t)
 		return love.image.newCompressedData(t[1])
 	end)
 	lily_handler_func("pasteImageData", 7, function(t)
