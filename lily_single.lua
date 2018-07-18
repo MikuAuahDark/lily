@@ -31,7 +31,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.1",
+	_VERSION = "3.0.2",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -779,7 +779,7 @@ if love.image then
 	lilyHandlerFunc("newImageData", 1, function(t)
 		return love.image.newImageData(t[1])
 	end)
-	lilyHandlerFunc("newCompressedData", function(t)
+	lilyHandlerFunc("newCompressedData", 1, function(t)
 		return love.image.newCompressedData(t[1])
 	end)
 	lilyHandlerFunc("pasteImageData", 7, function(t)
@@ -845,6 +845,9 @@ return lily
 
 --[[
 Changelog:
+v3.0.2: 18-07-2018
+> Fixed calling `lily.newCompressedData` cause Lily thread to crash (fix issue #1)
+
 v3.0.1: 16-07-2018
 > `lily.newFont` ignores size parameter
 

@@ -141,7 +141,7 @@ if love.image then
 	lilyHandlerFunc("newImageData", 1, function(t)
 		return love.image.newImageData(t[1])
 	end)
-	lilyHandlerFunc("newCompressedData", function(t)
+	lilyHandlerFunc("newCompressedData", 1, function(t)
 		return love.image.newCompressedData(t[1])
 	end)
 	lilyHandlerFunc("pasteImageData", 7, function(t)
