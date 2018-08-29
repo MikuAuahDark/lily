@@ -23,7 +23,7 @@
 -- 2. When you're handling "quit" event and you integrate Lily into
 --    your `love.run` loop, call `lily.quit` before `return`.
 
-local lily = {_VERSION = "2.0.10"}
+local lily = {_VERSION = "2.0.11"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 local is_love_11 = love._version >= "11.0"
@@ -332,7 +332,7 @@ function multilily_methods.__index.isComplete(this)
 end
 
 function multilily_methods.__index.getValues(this, index)
-	assert(this.done, "Incomplete request")
+	assert(this:isComplete(), "Incomplete request")
 
 	if index == nil then
 		local output = {}
@@ -343,7 +343,7 @@ function multilily_methods.__index.getValues(this, index)
 		return output
 	end
 
-	return assert(this.values[index], "Invalid index")
+	return assert(this.lilies[index], "Invalid index"):getValues()
 end
 
 function multilily_methods.__index.getCount(this)
@@ -477,6 +477,9 @@ return lily
 
 --[[
 Changelog:
+v2.0.11: 29-09-2018
+> Fixed `MultiLilyObject:getValues()` errors despite `MultiLilyObject:isComplete() == true`
+
 v2.0.10: 18-07-2018
 > Fixed calling `lily.newCompressedData` crashes Lily thread
 
