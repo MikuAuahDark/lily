@@ -128,9 +128,9 @@ Available functions:
 
 * pasteImageData(`ImageData`, ...) (`ImageData:paste(...)`)
 
-* compress(`love.data.compress`)
+* compress(`format`, `data`, `level`; returns string) (`love.data.compress("data", data, format, level)`)
 
-* decompress(`love.data.decompress`)
+* decompress(`format`, `data`; returns string) (`love.data.decompress("data", data, format)`)
 
 * newSoundData (`love.sound.newSoundData`)
 

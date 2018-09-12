@@ -91,11 +91,18 @@ end
 
 -- Always exist
 if love.data then
-	lilyHandlerFunc("compress", 3, function(t)
-		return love.data.compress(t[1], t[2], t[3], t[4])
+	local function isCompressedData(t)
+		return type(t) == "userdata" and t:typeOf("CompressedData")
+	end
+	lilyHandlerFunc("compress", 1, function(t)
+		return love.data.compress("data", t[2] or "lz4", t[1], t[3])
 	end)
-	lilyHandlerFunc("decompress", 2, function(t)
-		return love.data.decompress(t[1], t[2], t[3])
+	lilyHandlerFunc("decompress", 1, function(t)
+		if isCompressedData(t[1]) then
+			return love.data.decompress("data", t[1])
+		else
+			return love.data.decompress("data", t[2], t[1])
+		end
 	end)
 end
 

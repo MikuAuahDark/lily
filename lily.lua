@@ -25,13 +25,14 @@
 
 -- Need love module
 local love = require("love")
+assert(love._version >= "11.0", "Lily v3.x require at least LOVE 11.0")
 -- Need love.event and love.thread
 assert(love.event, "Lily requires love.event. Enable it in conf.lua or require it manually!")
 assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require it manually!")
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.2",
+	_VERSION = "3.0.3",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -263,7 +264,7 @@ function multiObjectMethod:isComplete()
 end
 
 function multiObjectMethod:getValues(index)
-	assert(self.done, "Incomplete request")
+	assert(self:isComplete(), "Incomplete request")
 
 	if index == nil then
 		local output = {}
@@ -274,7 +275,7 @@ function multiObjectMethod:getValues(index)
 		return output
 	end
 
-	return assert(self.values[index], "Invalid index")
+	return assert(self.values[index], "Invalid index"):getValues()
 end
 
 function multiObjectMethod:getCount()
@@ -449,8 +450,11 @@ end
 
 -- love.data (always exists)
 if love.data then
-	newLilyFunction("compress")
-	newLilyFunction("decompress")
+	local function dataGetString(value)
+		return value:getString()
+	end
+	newLilyFunction("compress", dataGetString)
+	newLilyFunction("decompress", dataGetString)
 end
 
 -- love.filesystem (always exists)
@@ -641,6 +645,11 @@ return lily
 
 --[[
 Changelog:
+v3.0.3: 12-09-2018
+> Explicitly check for LOVE 11.0
+> `lily.compress` and `lily.decompress` now follows v2.x API
+> Fixed multi:getValues() errors even multi:isComplete() is true
+
 v3.0.2: 18-07-2018
 > Fixed calling `lily.newCompressedData` cause Lily thread to crash (fix issue #1)
 
