@@ -202,6 +202,7 @@ end
 
 -- If main thread puses anything to channel_info, or pop the count, that means we should exit
 while channel_info:performAtomic(not_quit) do
+	collectgarbage()
 	-- Structure
 	-- 1. thread_id
 	-- 2. task type
