@@ -170,6 +170,7 @@ end
 
 -- Main loop
 while true do
+	collectgarbage()
 	-- Get request (see the beginning of file for table format)
 	local request = taskChannel:demand()
 	-- If it's not table then quit signaled
