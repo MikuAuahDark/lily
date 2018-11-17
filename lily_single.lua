@@ -23,7 +23,7 @@
 -- 2. When you're handling "quit" event and you integrate Lily into
 --    your `love.run` loop, call `lily.quit` before `return`.
 
-local lily = {_VERSION = "2.0.11"}
+local lily = {_VERSION = "2.0.12"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 local is_love_11 = love._version >= "11.0"
@@ -634,10 +634,10 @@ if love.math and not(is_love_11) then
 		-- lily.decompress expects LOVE 11.0 order too.
 		if type(t[1]) == "string" then
 			-- string supplied as first argument (format)
-			return love.math.decompress(t[2], t[1])
+			return love.filesystem.newFileData(love.math.decompress(t[2], t[1]), "")
 		else
 			-- CompressedData supplied as first argument
-			return love.math.decompress(t[1])
+			return love.filesystem.newFileData(love.math.decompress(t[1]), "")
 		end
 	end)
 elseif love.data then
@@ -676,6 +676,7 @@ end
 
 -- If main thread puses anything to channel_info, or pop the count, that means we should exit
 while channel_info:performAtomic(not_quit) do
+	collectgarbage()
 	-- Structure
 	-- 1. thread_id
 	-- 2. task type
@@ -752,6 +753,9 @@ return lily
 
 --[[
 Changelog:
+v2.0.12: 17-11-2018
+> Fixed `lily.decompress` error
+
 v2.0.11: 29-09-2018
 > Fixed `MultiLilyObject:getValues()` errors despite `MultiLilyObject:isComplete() == true`
 

@@ -160,10 +160,10 @@ if love.math and not(is_love_11) then
 		-- lily.decompress expects LOVE 11.0 order too.
 		if type(t[1]) == "string" then
 			-- string supplied as first argument (format)
-			return love.math.decompress(t[2], t[1])
+			return love.filesystem.newFileData(love.math.decompress(t[2], t[1]), "")
 		else
 			-- CompressedData supplied as first argument
-			return love.math.decompress(t[1])
+			return love.filesystem.newFileData(love.math.decompress(t[1]), "")
 		end
 	end)
 elseif love.data then
