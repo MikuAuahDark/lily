@@ -94,15 +94,19 @@ if love.data then
 	local function isCompressedData(t)
 		return type(t) == "userdata" and t:typeOf("CompressedData")
 	end
+
 	lilyHandlerFunc("compress", 1, function(t)
-		return love.data.compress("data", t[2] or "lz4", t[1], t[3])
+		return love.data.compress("data", t[1] or "lz4", t[2], t[3])
 	end)
 	lilyHandlerFunc("decompress", 1, function(t)
-		if isCompressedData(t[1]) then
-			return love.data.decompress("data", t[1])
-		else
-			return love.data.decompress("data", t[2], t[1])
+		if type(t[2]) == "userdata" and t[2]:typeOf("Data") then
+			-- Prior to LOVE 11.2, love.data.decompress can't decompress
+			-- Data object (not CompressedData) due to bug in the code
+			-- when handling these variant. So, convert it to string before
+			-- passing it.
+			t[2] = t[2]:getString()
 		end
+		return love.data.decompress("data", t[1], t[2])
 	end)
 end
 
@@ -168,6 +172,12 @@ if love.video then
 	end)
 end
 
+local handlerFunc
+local handlerArg
+local function callHandler()
+	return handlerFunc(handlerArg)
+end
+
 -- Main loop
 while true do
 	collectgarbage()
@@ -197,7 +207,9 @@ while true do
 			end
 
 			-- Call
-			local result = {pcall(task.handler, argv)}
+			handlerFunc = task.handler
+			handlerArg = argv
+			local result = {xpcall(callHandler, debug.traceback)}
 			if result[1] == false then
 				-- Error
 				pushData(request[1], errorChannel, string.format("'%s': %s", tasktype, result[2]))

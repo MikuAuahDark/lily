@@ -32,7 +32,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.3",
+	_VERSION = "3.0.4",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -645,6 +645,11 @@ return lily
 
 --[[
 Changelog:
+v3.0.4: 25-11-2018
+> Fixed `lily.decompress` error when passing Data object in LOVE 11.1 and earlier
+> Fixed `lily.compress` error
+> Make error message more comprehensive
+
 v3.0.3: 12-09-2018
 > Explicitly check for LOVE 11.0
 > `lily.compress` and `lily.decompress` now follows v2.x API
