@@ -275,7 +275,7 @@ function multiObjectMethod:getValues(index)
 		return output
 	end
 
-	return assert(self.values[index], "Invalid index"):getValues()
+	return assert(self.lilies[index], "Invalid index"):getValues()
 end
 
 function multiObjectMethod:getCount()
