@@ -32,7 +32,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.3",
+	_VERSION = "3.0.4",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -736,15 +736,19 @@ if love.data then
 	local function isCompressedData(t)
 		return type(t) == "userdata" and t:typeOf("CompressedData")
 	end
+
 	lilyHandlerFunc("compress", 1, function(t)
-		return love.data.compress("data", t[2] or "lz4", t[1], t[3])
+		return love.data.compress("data", t[1] or "lz4", t[2], t[3])
 	end)
 	lilyHandlerFunc("decompress", 1, function(t)
-		if isCompressedData(t[1]) then
-			return love.data.decompress("data", t[1])
-		else
-			return love.data.decompress("data", t[2], t[1])
+		if type(t[2]) == "userdata" and t[2]:typeOf("Data") then
+			-- Prior to LOVE 11.2, love.data.decompress can't decompress
+			-- Data object (not CompressedData) due to bug in the code
+			-- when handling these variant. So, convert it to string before
+			-- passing it.
+			t[2] = t[2]:getString()
 		end
+		return love.data.decompress("data", t[1], t[2])
 	end)
 end
 
@@ -810,8 +814,15 @@ if love.video then
 	end)
 end
 
+local handlerFunc
+local handlerArg
+local function callHandler()
+	return handlerFunc(handlerArg)
+end
+
 -- Main loop
 while true do
+	collectgarbage()
 	-- Get request (see the beginning of file for table format)
 	local request = taskChannel:demand()
 	-- If it's not table then quit signaled
@@ -838,7 +849,9 @@ while true do
 			end
 
 			-- Call
-			local result = {pcall(task.handler, argv)}
+			handlerFunc = task.handler
+			handlerArg = argv
+			local result = {xpcall(callHandler, debug.traceback)}
 			if result[1] == false then
 				-- Error
 				pushData(request[1], errorChannel, string.format("'%s': %s", tasktype, result[2]))
@@ -856,10 +869,15 @@ return lily
 
 --[[
 Changelog:
+v3.0.4: 25-11-2018
+> Fixed `lily.decompress` error when passing Data object in LOVE 11.1 and earlier
+> Fixed `lily.compress` error
+> Make error message more comprehensive
+
 v3.0.3: 12-09-2018
 > Explicitly check for LOVE 11.0
 > `lily.compress` and `lily.decompress` now follows v2.x API
-> Fixed multi:getValues() errors even multi:isComplete() is true 
+> Fixed multi:getValues() errors even multi:isComplete() is true
 
 v3.0.2: 18-07-2018
 > Fixed calling `lily.newCompressedData` cause Lily thread to crash (fix issue #1)
