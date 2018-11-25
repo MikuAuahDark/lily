@@ -152,18 +152,22 @@ if love.image then
 end
 
 if love.math and not(is_love_11) then
+	local function isCompressedData(t)
+		return type(t) == "userdata" and t:typeOf("CompressedData")
+	end
+
 	lily_handler_func("compress", 2, function(t)
 		-- lily.compress expects LOVE 11.0 order. That's it, format first then data then level
 		return love.math.compress(t[2], t[1], t[3])
 	end)
 	lily_handler_func("decompress", 1, function(t)
 		-- lily.decompress expects LOVE 11.0 order too.
-		if type(t[1]) == "string" then
-			-- string supplied as first argument (format)
-			return love.filesystem.newFileData(love.math.decompress(t[2], t[1]), "")
-		else
+		if isCompressedData(t[1]) then
 			-- CompressedData supplied as first argument
 			return love.filesystem.newFileData(love.math.decompress(t[1]), "")
+		else
+			-- string or Data is supplied as first argument (format)
+			return love.filesystem.newFileData(love.math.decompress(t[2], t[1]), "")
 		end
 	end)
 elseif love.data then
@@ -198,6 +202,12 @@ end
 
 local function not_quit()
 	return channel_info:getCount() == 1
+end
+
+local handlerFunc
+local handlerArg
+local function callHandler()
+	return handlerFunc(handlerArg)
 end
 
 -- If main thread puses anything to channel_info, or pop the count, that means we should exit
@@ -238,7 +248,9 @@ while channel_info:performAtomic(not_quit) do
 			-- Error: too few arguments
 			push_data(req_id, errorindicator, string.format("'%s': too few arguments (at least %d is required)", tasktype, task.minarg))
 		else
-			local result = {pcall(task.handler, inputs)}
+			handlerFunc = task.handler
+			handlerArg = inputs
+			local result = {xpcall(callHandler, debug.traceback)}
 
 			if result[1] == false then
 				-- Error
