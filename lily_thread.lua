@@ -99,10 +99,10 @@ if love.data then
 		return love.data.compress("data", t[1] or "lz4", t[2], t[3])
 	end)
 	lilyHandlerFunc("decompress", 1, function(t)
-		if type(t[2]) == "userdata" and t[2]:typeOf("Data") then
+		if type(t[2]) == "userdata" and t[2]:typeOf("Data") and love._version < "11.2" then
 			-- Prior to LOVE 11.2, love.data.decompress can't decompress
 			-- Data object (not CompressedData) due to bug in the code
-			-- when handling these variant. So, convert it to string before
+			-- when handling this variant. So, convert it to string before
 			-- passing it.
 			t[2] = t[2]:getString()
 		end
