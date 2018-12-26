@@ -32,7 +32,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.4",
+	_VERSION = "3.0.5",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -105,6 +105,9 @@ elseif os.execute() == 1 then
 	end
 	-- Fallback to single core (discouraged, it will perform same as love-loader)
 end
+-- Limit CPU to 4. Imagine how many threads will be created when
+-- someone runs this in threadripper.
+amountOfCPU = math.min(amountOfCPU, 4)
 
 -- Dummy channel used to signal main thread that there's error
 local errorChannel = love.thread.newChannel()
@@ -645,6 +648,9 @@ return lily
 
 --[[
 Changelog:
+v3.0.5: 26-12-2018
+> Limit threads to 4
+
 v3.0.4: 25-11-2018
 > Fixed `lily.decompress` error when passing Data object in LOVE 11.1 and earlier
 > Fixed `lily.compress` error
