@@ -23,7 +23,7 @@
 -- 2. When you're handling "quit" event and you integrate Lily into
 --    your `love.run` loop, call `lily.quit` before `return`.
 
-local lily = {_VERSION = "2.0.13"}
+local lily = {_VERSION = "2.0.14"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 local is_love_11 = love._version >= "11.0"
@@ -78,6 +78,9 @@ elseif os.execute() == 1 then
 	end
 	-- Well, fallback to single core (not recommended)
 end
+-- Limit CPU to 4. Imagine how many threads will be created when
+-- someone runs this in threadripper.
+number_processor = math.min(number_processor, 4)
 
 -- Create n-threads
 local errchannel = love.thread.newChannel()
@@ -477,6 +480,9 @@ return lily
 
 --[[
 Changelog:
+v2.0.14: 26-12-2018
+> Limit to 4 threads.
+
 v2.0.13: 25-11-2018
 > Fixed `lily.decompress` error if Data other than CompressedData is specified
 
