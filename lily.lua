@@ -1,5 +1,5 @@
 -- LOVE Async Loading Library
--- Copyright (c) 2039 Dark Energy Processor
+-- Copyright (c) 2040 Dark Energy Processor
 --
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
@@ -23,23 +23,14 @@
 -- 2. When you're handling "quit" event and you integrate Lily into
 --    your `love.run` loop, call `lily.quit` before `return`.
 
-local lily = {_VERSION = "2.0.14"}
+local lily = {_VERSION = "2.0.15"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 local is_love_11 = love._version >= "11.0"
 
 -- Get current script directory
-local _arg = {...}
-local module_path
+local module_path = select(1, ...):match("(.-)[^%.]+$")
 local lily_thread_script --luacheck: ignore lily_thread_script
-
-if type(_arg[1]) == "string" then
-	-- Oh, standard Lua require
-	module_path = _arg[1]:match("(.-)[^%.]+$")
-else
-	-- In case it's loaded from AquaShine.LoadModule, but how to detect it?
-	module_path = ""
-end
 
 -- We need love.event and love.thread
 assert(love.event, "Lily requires love.event. Enable it in conf.lua")
@@ -480,6 +471,9 @@ return lily
 
 --[[
 Changelog:
+v2.0.15: 08-04-2018
+> Reorder lily.newImage image loading function
+
 v2.0.14: 26-12-2018
 > Limit to 4 threads.
 

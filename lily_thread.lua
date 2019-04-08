@@ -1,5 +1,5 @@
 -- LOVE Async Loading Library (Thread Part)
--- Copyright (c) 2039 Dark Energy Processor
+-- Copyright (c) 2040 Dark Energy Processor
 --
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
@@ -109,8 +109,8 @@ if has_graphics then
 		return love.font.newRasterizer(t[1], t[2]), t[2] -- This should work.
 	end)
 	lily_handler_func("newImage", 1, function(t)
-		local s, x = pcall(love.image.newCompressedData, t[1])
-		return (s and x or love.image.newImageData(t[1])), select(2, unpack(t))
+		local s, x = pcall(love.image.newImageData, t[1])
+		return (s and x or love.image.newCompressedData(t[1])), select(2, unpack(t))
 	end)
 	lily_handler_func("newVideo", 1, function(t)
 		return love.video.newVideoStream(t[1]), t[2]
@@ -128,7 +128,7 @@ if has_graphics then
 		for i = 1, 6 do
 			local v = t[1][i]
 			local t = v:type()
-			if type(v) ~= "userdata" or (t ~= "ImageData" and t ~= "CompressedImageData") then
+			if t ~= "userdata" or (t ~= "ImageData" and t ~= "CompressedImageData") then
 				t[1][i] = love.image.newImageData(v)
 			end
 		end
