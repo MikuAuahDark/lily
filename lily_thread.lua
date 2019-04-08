@@ -1,5 +1,5 @@
 -- LOVE Async Loading Library (Thread Part)
--- Copyright (c) 2039 Dark Energy Processor
+-- Copyright (c) 2040 Dark Energy Processor
 --
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
@@ -137,11 +137,30 @@ if hasGraphics then
 		return love.font.newRasterizer(t[1], t[2])
 	end)
 	lilyHandlerFunc("newImage", 1, function(t)
-		local s, x = pcall(love.image.newCompressedData, t[1])
-		return (s and x or love.image.newImageData(t[1])), select(2, unpack(t))
+		local s, x = pcall(love.image.newImageData, t[1])
+		return (s and x or love.image.newCompressedData(t[1])), select(2, unpack(t))
 	end)
 	lilyHandlerFunc("newVideo", 1, function(t)
 		return love.video.newVideoStream(t[1]), t[2]
+	end)
+	lilyHandlerFunc("newCubeImage", 1, function(t)
+		-- If it's not table, then it should be processed with
+		-- love.image.newCubeFaces (undocumented function)
+		if type(t[1]) ~= "table" then
+			local id = t[1]
+			if type(id) ~= "userdata" or id:type() ~= "ImageData" then
+				id = love.image.newImageData(id)
+			end
+			t[1] = {love.image.newCubeFaces(id)}
+		end
+		for i = 1, 6 do
+			local v = t[1][i]
+			local t = v:type()
+			if t ~= "userdata" or (t ~= "ImageData" and t ~= "CompressedImageData") then
+				t[1][i] = love.image.newImageData(v)
+			end
+		end
+		return t[1], t[2]
 	end)
 end
 

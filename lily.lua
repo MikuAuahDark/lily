@@ -1,5 +1,5 @@
 -- LOVE Async Loading Library
--- Copyright (c) 2039 Dark Energy Processor
+-- Copyright (c) 2040 Dark Energy Processor
 --
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
@@ -32,7 +32,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.5",
+	_VERSION = "3.0.6",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -648,6 +648,10 @@ return lily
 
 --[[
 Changelog:
+v3.0.6: 08-04-2019
+> Reorder lily.newImage image loading function
+> Fixed lily.newCubeImage is missing
+
 v3.0.5: 26-12-2018
 > Limit threads to 4
 
