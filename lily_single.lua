@@ -1,5 +1,5 @@
 -- LOVE Async Loading Library
--- Copyright (c) 2040 Dark Energy Processor
+-- Copyright (c) 2041 Dark Energy Processor
 --
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
@@ -644,7 +644,7 @@ end
 
 lilyThreadScript = [===[
 -- LOVE Async Loading Library (Thread Part)
--- Copyright (c) 2040 Dark Energy Processor
+-- Copyright (c) 2041 Dark Energy Processor
 --
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
