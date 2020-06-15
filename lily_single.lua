@@ -23,7 +23,7 @@
 -- 2. When you're handling "quit" event and you integrate Lily into
 --    your `love.run` loop, call `lily.quit` before `return`.
 
-local lily = {_VERSION = "2.0.15"}
+local lily = {_VERSION = "2.0.16"}
 local love = require("love")
 assert(love._version >= "0.10.0", "Lily require at least LOVE 0.10.0")
 local is_love_11 = love._version >= "11.0"
@@ -102,8 +102,12 @@ end
 
 -- Function handler
 lily.handlers = {}
-local dummyhandler = function(...) return select(2, ...) end
-local wraphandler = function(fname)
+
+local function dummyhandler(...)
+	return select(2, ...)
+end
+
+local function wraphandler(fname)
 	return function(...)
 		return fname(select(2, ...))
 	end
@@ -574,7 +578,7 @@ end
 
 if has_graphics then
 	lily_handler_func("newFont", 1, function(t)
-		return love.font.newRasterizer(t[1], t[2]), t[2] -- This should work.
+		return love.font.newRasterizer(t[1], t[2], t[3]), t[2] -- This should work.
 	end)
 	lily_handler_func("newImage", 1, function(t)
 		local s, x = pcall(love.image.newImageData, t[1])
@@ -759,6 +763,9 @@ return lily
 
 --[[
 Changelog:
+v2.0.16: 15-06-2020
+> `lily.newFont` now respect type hinting mode
+
 v2.0.15: 08-04-2018
 > Reorder lily.newImage image loading function
 
