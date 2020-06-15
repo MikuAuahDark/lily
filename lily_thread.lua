@@ -134,7 +134,7 @@ end
 
 if hasGraphics then
 	lilyHandlerFunc("newFont", 1, function(t)
-		return love.font.newRasterizer(t[1], t[2])
+		return love.font.newRasterizer(t[1], t[2], t[3], t[4])
 	end)
 	lilyHandlerFunc("newImage", 1, function(t)
 		local s, x = pcall(love.image.newImageData, t[1])

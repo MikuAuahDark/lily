@@ -32,7 +32,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.6",
+	_VERSION = "3.0.7",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -779,7 +779,7 @@ end
 
 if hasGraphics then
 	lilyHandlerFunc("newFont", 1, function(t)
-		return love.font.newRasterizer(t[1], t[2])
+		return love.font.newRasterizer(t[1], t[2], t[3], t[4])
 	end)
 	lilyHandlerFunc("newImage", 1, function(t)
 		local s, x = pcall(love.image.newImageData, t[1])
@@ -891,6 +891,9 @@ return lily
 
 --[[
 Changelog:
+v3.0.7: 15-06-2020
+> Fixed `lily.newFont` ignores type hinting and DPI scale
+
 v3.0.6: 08-04-2019
 > Reorder lily.newImage image loading function
 > Fixed lily.newCubeImage is missing
@@ -912,7 +915,7 @@ v3.0.2: 18-07-2018
 > Fixed calling `lily.newCompressedData` cause Lily thread to crash (fix issue #1)
 
 v3.0.1: 16-07-2018
-> `lily.newFont` ignores size parameter
+> Fixed `lily.newFont` ignores size parameter
 
 v3.0.0: 13-06-2018
 > Major refactoring
