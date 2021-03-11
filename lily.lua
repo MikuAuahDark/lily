@@ -1,5 +1,5 @@
 -- LOVE Async Loading Library
--- Copyright (c) 2041 Dark Energy Processor
+-- Copyright (c) 2042 Dark Energy Processor
 --
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
@@ -32,7 +32,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.7",
+	_VERSION = "3.0.8",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -376,7 +376,7 @@ function lily.setUpdateMode(mode)
 		error("bad argument #1 to 'setUpdateMode' (\"automatic\" or \"manual\" expected)", 2)
 	end
 	-- Set update mode
-	lily.updateModeChannel:performAtomic(atomicSetUpdateMode)
+	lily.updateModeChannel:performAtomic(atomicSetUpdateMode, mode)
 end
 end -- do
 
@@ -648,6 +648,10 @@ return lily
 
 --[[
 Changelog:
+v3.0.8: 11-03-2021
+> Fixed `lily.setUpdateMode`
+> Thread: call `collectgarbage()` twice before serving
+
 v3.0.7: 15-06-2020
 > Fixed `lily.newFont` ignores type hinting and DPI scale
 

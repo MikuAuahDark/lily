@@ -1,5 +1,5 @@
 -- LOVE Async Loading Library (Thread Part)
--- Copyright (c) 2041 Dark Energy Processor
+-- Copyright (c) 2042 Dark Energy Processor
 --
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
@@ -199,6 +199,7 @@ end
 
 -- Main loop
 while true do
+	collectgarbage()
 	collectgarbage()
 	-- Get request (see the beginning of file for table format)
 	local request = taskChannel:demand()
