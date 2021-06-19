@@ -218,11 +218,13 @@ Returns: itself
 Sets new function as callback when there's error when loading asset. Default to Lua built-in `error` function.
 Function signature is:
 
-* `void error_callback(any userdata, string error_message)` (for `LilyObject`)
+* `void error_callback(any userdata, string error_message, string traceback)` (for `LilyObject`)
 
-* `void error_callback(any userdata, number lilyindex, string error_message)` (for `MultiLilyObject`)
+* `void error_callback(any userdata, number lilyindex, string error_message, string traceback)` (for `MultiLilyObject`)
 
 Returns: itself
+
+> `traceback` parameter is added in v3.0.9
 
 *************************************************
 

@@ -1,5 +1,5 @@
--- LOVE Async Loading Library
--- Copyright (c) 2042 Dark Energy Processor
+-- LOVE Asset Async Loader
+-- Copyright (c) 2021 Miku AuahDark
 --
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
@@ -32,7 +32,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.8",
+	_VERSION = "3.0.9",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -155,8 +155,8 @@ function lilyObjectMethod.complete(userdata, ...)
 end
 
 -- On error function
-function lilyObjectMethod.error(userdata, errorMessage)
-	error(errorMessage)
+function lilyObjectMethod.error(userdata, errorMessage, source)
+	error(errorMessage.."\n"..source)
 end
 
 function lilyObjectMethod:onComplete(func)
@@ -201,16 +201,16 @@ local multiObjectMeta = {__index = multiObjectMethod}
 -- On loaded function (noop)
 multiObjectMethod.loaded = lilyObjectMethod.complete
 -- On error function
-function multiObjectMethod.error(userdata, lilyIndex, errorMessage)
-	error(errorMessage)
+function multiObjectMethod.error(userdata, lilyIndex, errorMessage, source)
+	error(errorMessage.."\n"..source)
 end
 -- On complete function (noop)
 multiObjectMethod.complete = lilyObjectMethod.complete
 -- Internal function for child lilies error handler
-local function multiObjectChildErrorHandler(userdata, errorMessage)
+local function multiObjectChildErrorHandler(userdata, errorMessage, source)
 	-- Userdata is {index, parentObject}
 	local multi = userdata[2]
-	multi.error(multi.userdata, userdata[1], errorMessage)
+	multi.error(multi.userdata, userdata[1], errorMessage, source)
 end
 
 -- Internal function used for child lilies onComplete callback
@@ -303,7 +303,7 @@ local function lilyEventHandler(reqID, v1, v2)
 		-- Check for error
 		if v1 == errorChannel then
 			-- Second argument is the error message
-			lilyObject.error(lilyObject.userdata, v2)
+			lilyObject.error(lilyObject.userdata, v2, lilyObject.trace)
 		else
 			-- "v2" is returned values
 			-- Call main thread handler for specified request type
@@ -417,6 +417,8 @@ end
 -- Internal function which return function to create LilyObject
 -- with specified request type
 local function newLilyFunction(requestType, handlerFunc)
+	local tracebackname = "Function is lily."..requestType
+
 	-- This function is the constructor
 	lily[requestType] = function(...)
 		-- Initialize
@@ -427,6 +429,7 @@ local function newLilyFunction(requestType, handlerFunc)
 		this.requestType = requestType
 		this.done = false
 		this.values = nil
+		this.trace = debug.traceback(tracebackname)
 
 		-- Push task
 		-- See structure in lily_thread.lua
@@ -892,6 +895,9 @@ return lily
 
 --[[
 Changelog:
+v3.0.9: 14-06-2021
+> Any lily request now saves the traceback of the caller and will be printed on error
+
 v3.0.8: 11-03-2021
 > Fixed `lily.setUpdateMode`
 > Thread: call `collectgarbage()` twice before serving
