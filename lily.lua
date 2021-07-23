@@ -32,7 +32,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.9",
+	_VERSION = "3.0.10",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -487,8 +487,8 @@ if love.graphics then
 			for i = 1, #values do
 				v[i] = values[i][1]
 			end
-			this.values = f(v, udata[2])
-			this.complete(this.userdata, this.values)
+			this.values = {f(v, udata[2])}
+			this.complete(this.userdata, unpack(this.values))
 		end
 	end
 
@@ -504,7 +504,7 @@ if love.graphics then
 					-- List of mipmaps
 					error("Nested table (mipmaps) is not supported at the moment")
 				else
-					multiCount[#multiCount + 1] = {lily.newImage, v, setting}
+					multiCount[#multiCount + 1] = {lily.newImageData, v, setting}
 				end
 			end
 			-- Check count
@@ -651,6 +651,9 @@ return lily
 
 --[[
 Changelog:
+v3.0.10: 23-07-2021
+> Fixed lily.newArrayImage and lily.newVolumeImage
+
 v3.0.9: 14-06-2021
 > Any lily request now saves the traceback of the caller and will be printed on error
 

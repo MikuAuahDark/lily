@@ -1,5 +1,5 @@
--- LOVE Async Loading Library (Thread Part)
--- Copyright (c) 2042 Dark Energy Processor
+-- LOVE Asset Async Loader (Thread Part)
+-- Copyright (c) 2021 Miku AuahDark
 --
 -- This software is provided 'as-is', without any express or implied
 -- warranty. In no event will the authors be held liable for any damages
