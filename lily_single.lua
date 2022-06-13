@@ -32,7 +32,7 @@ assert(love.thread, "Lily requires love.thread. Enable it in conf.lua or require
 
 local modulePath = select(1, ...):match("(.-)[^%.]+$")
 local lily = {
-	_VERSION = "3.0.11",
+	_VERSION = "3.0.12",
 	-- Loaded modules
 	modules = {},
 	-- List of threads
@@ -382,44 +382,44 @@ end -- do
 
 local function manualProcessSingleData()
 	local count = lily.dataPullChannel:getCount()
+	local processed = false
 
 	if count > 0 then
 		-- Pop data
 		local data = lily.dataPullChannel:pop()
 		-- Pass to event handler
 		lilyEventHandler(data[1], data[2], data[3])
+		processed = true
 	end
 
-	return count
+	return count, processed
 end
 
 --- Pull processed data from other threads.
 -- Signals other loader object (calling their callback function) when necessary.
 function lily.update(timeout)
-	timeout = timeout or math.huge
-	local left = math.huge
+	timeout = timeout or -1
+	local left = -1
 	local count = 0
 
-	if love.timer then
+	if love.timer and timeout >= 0 then
 		local t = love.timer.getTime() + timeout
 
-		while love.timer.getTime() < t and left > 0 do
-			left = manualProcessSingleData()
-			count = count + 1
+		while love.timer.getTime() < t and (left > 0 or left == -1) do
+			local processed
+			left, processed = manualProcessSingleData()
+			count = count + (processed and 1 or 0)
 		end
 	else
-		-- No love.timer, can't use timeout object.
-		while true do
-			left = manualProcessSingleData()
-			count = count + 1
+		-- No love.timer (can't use timeout object) or timeout is negative.
+		while (left > 0 or left == -1) do
+			local processed
+			left, processed = manualProcessSingleData()
+			count = count + (processed and 1 or 0)
 		end
 	end
 
-	if left == math.huge then
-		left = 0
-	end
-
-	return count, left
+	return count, math.max(left, 0)
 end
 
 ----------------------------------------
@@ -926,6 +926,9 @@ return lily
 
 --[[
 Changelog:
+v3.0.12: 23-11-2021
+> Fixed lily.update count value always 1 if no timeout is specified and there are no pending queues.
+
 v3.0.11: 01-10-2021
 > Added timeout parameter to lily.update. Requires love.timer.
 
